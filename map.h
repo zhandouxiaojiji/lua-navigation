@@ -71,8 +71,8 @@ inline int check_in_map_pos(int pos, int limit) {
     return pos >= 0 && pos < limit;
 }
 
-inline int map_walkable(int pos, int limit, struct map* m) {
-    return check_in_map_pos(pos, limit) && !BITTEST(m->m, pos);
+inline int map_walkable(struct map* m, int pos) {
+    return check_in_map_pos(pos, m->width * m->height) && !BITTEST(m->m, pos);
 }
 
 inline int dist(int one, int two, int w) {
@@ -90,6 +90,15 @@ inline int dist(int one, int two, int w) {
     } else {
         return dy * 7 + (dx - dy) * 5;
     }
+}
+
+inline void pos2xy(struct map* m, int pos, int* x, int* y) {
+    *x = pos % m->width;
+    *y = pos / m->width; 
+}
+
+inline int xy2pos(struct map* m, int x, int y) {
+    return m->width * y + x;
 }
 
 #endif /* __MAP__ */

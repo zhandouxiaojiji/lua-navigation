@@ -16,7 +16,7 @@
 #define deep_print(format, ...)
 #endif
 
-#define MT_NAME ("_jps_search_metatable")
+#define MT_NAME ("_nav_metatable")
 
 static inline int getfield(lua_State* L, const char* f) {
     if (lua_getfield(L, -1, f) != LUA_TNUMBER) {
@@ -285,6 +285,16 @@ static void form_path(lua_State* L, int last, struct map* m) {
     }
 }
 
+static int lnav_check_line_walkable(lua_State* L) {
+    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    float x1 = luaL_checknumber(L, 2);
+    float y1 = luaL_checknumber(L, 3);
+    float x2 = luaL_checknumber(L, 4);
+    float y2 = luaL_checknumber(L, 5);
+    lua_pushboolean(L, check_line_walkable(m, x1, y1, x2, y2));
+    return 1;
+}
+
 static int lnav_find_path(lua_State* L) {
     struct map* m = luaL_checkudata(L, 1, MT_NAME);
     int x = luaL_checkinteger(L, 2);
@@ -315,6 +325,7 @@ static int lnav_find_path(lua_State* L) {
     if (start_pos >= 0) {
         form_path(L, start_pos, m);
         smooth_path(m);
+        return 1;
     }
     return 0;
 }
@@ -326,6 +337,7 @@ static int lmetatable(lua_State* L) {
                         {"clear_block", lnav_clear_block},
                         {"clear_allblock", lnav_clear_allblock},
                         {"find_path", lnav_find_path},
+                        {"check_line_walkable", lnav_check_line_walkable},
                         {"mark_connected", lnav_mark_connected},
                         {"dump_connected", lnav_dump_connected},
                         {"dump", lnav_dump},

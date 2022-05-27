@@ -52,9 +52,7 @@ static int get_next_pos(int pos, unsigned char dir, int w, int h) {
 }
 
 static inline int walkable(struct map *m, int pos, int cur_dir, int next_dir) {
-    return map_walkable(
-        get_next_pos(pos, (cur_dir + (next_dir)) % 8, m->width, m->height),
-        m->width * m->height, m);
+    return map_walkable(m, get_next_pos(pos, (cur_dir + (next_dir)) % 8, m->width, m->height));
 }
 
 static unsigned char natural_dir(int pos, unsigned char cur_dir, struct map *m) {
@@ -182,7 +180,7 @@ static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir
     int h = m->height;
     int len = w * h;
     int next_pos = get_next_pos(pos, dir, w, h);
-    if (!map_walkable(next_pos, len, m)) {
+    if (!map_walkable(m, next_pos)) {
         return 0;
     }
 #ifdef __CONNER_SOLVE__
