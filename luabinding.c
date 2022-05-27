@@ -1,11 +1,14 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include "fibheap.h"
-#include "jps.h"
 #include "lauxlib.h"
 #include "lua.h"
 #include "lualib.h"
+
+#include "map.h"
+#include "fibheap.h"
+#include "jps.h"
+#include "smooth.h"
 
 #ifdef __PRINT_DEBUG__
 #define deep_print(format, ...) printf(format, ##__VA_ARGS__)
@@ -257,7 +260,7 @@ static int gc(lua_State* L) {
     return 0;
 }
 
-static int form_path(lua_State* L, int last, struct map* m) {
+static void form_path(lua_State* L, int last, struct map* m) {
     lua_newtable(L);
     int num = 0;
     int x, y;
@@ -280,7 +283,6 @@ static int form_path(lua_State* L, int last, struct map* m) {
         num += insert_mid_jump_point(L, m, pos, m->comefrom[pos], w, num);
         pos = m->comefrom[pos];
     }
-    return 1;
 }
 
 static int lnav_find_path(lua_State* L) {
@@ -311,7 +313,8 @@ static int lnav_find_path(lua_State* L) {
     }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
-        return form_path(L, start_pos, m);
+        form_path(L, start_pos, m);
+        smooth_path(m);
     }
     return 0;
 }

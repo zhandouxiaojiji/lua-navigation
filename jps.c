@@ -1,4 +1,5 @@
 #include "jps.h"
+#include "fibheap.h"
 
 static struct node_data *construct(struct map *m, int pos, int g_value,
             unsigned char dir) {
@@ -9,8 +10,6 @@ static struct node_data *construct(struct map *m, int pos, int g_value,
     node->dir = dir;
     return node;
 }
-
-
 
 static int get_next_pos(int pos, unsigned char dir, int w, int h) {
     int x = pos % w;
