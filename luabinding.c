@@ -158,36 +158,6 @@ static int lnav_clear_allblock(lua_State* L) {
     return 0;
 }
 
-static int lnav_set_start(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    if (!check_in_map(x, y, m->width, m->height)) {
-        luaL_error(L, "Position (%d,%d) is out of map", x, y);
-    }
-    int pos = m->width * y + x;
-    if (BITTEST(m->m, pos)) {
-        luaL_error(L, "Position (%d,%d) is in block", x, y);
-    }
-    m->start = pos;
-    return 0;
-}
-
-static int lnav_set_end(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    if (!check_in_map(x, y, m->width, m->height)) {
-        luaL_error(L, "Position (%d,%d) is out of map", x, y);
-    }
-    int pos = m->width * y + x;
-    if (BITTEST(m->m, pos)) {
-        luaL_error(L, "Position (%d,%d) is in block", x, y);
-    }
-    m->end = pos;
-    return 0;
-}
-
 static int lnav_mark_connected(lua_State* L) {
     struct map* m = luaL_checkudata(L, 1, MT_NAME);
     int len = m->width * m->height;
@@ -315,13 +285,29 @@ static int form_path(lua_State* L, int last, struct map* m) {
 
 static int lnav_find_path(lua_State* L) {
     struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    if (check_in_map(x, y, m->width, m->height)) {
+        m->start = m->width * y + x;
+    } else {
+        luaL_error(L, "Position (%d,%d) is out of map", x, y);
+    }
+    x = luaL_checkinteger(L, 4);
+    y = luaL_checkinteger(L, 5);
+    if (check_in_map(x, y, m->width, m->height)) {
+        m->end = m->width * y + x;
+    } else {
+        luaL_error(L, "Position (%d,%d) is out of map", x, y);
+    }
     if (BITTEST(m->m, m->start)) {
         luaL_error(L, "start pos(%d,%d) is in block", m->start % m->width,
                    m->start / m->width);
+        return 0;
     }
     if (BITTEST(m->m, m->end)) {
         luaL_error(L, "end pos(%d,%d) is in block", m->end % m->width,
                    m->end / m->width);
+        return 0;
     }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
@@ -336,8 +322,6 @@ static int lmetatable(lua_State* L) {
                         {"add_blockset", lnav_blockset},
                         {"clear_block", lnav_clear_block},
                         {"clear_allblock", lnav_clear_allblock},
-                        {"set_start", lnav_set_start},
-                        {"set_end", lnav_set_end},
                         {"find_path", lnav_find_path},
                         {"mark_connected", lnav_mark_connected},
                         {"dump_connected", lnav_dump_connected},

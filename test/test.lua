@@ -6,9 +6,7 @@ local nav = navigation.new {
     }
 }
 
-nav:set_start(0, 0)
-nav:set_end(1, 7)
-local ret = nav:find_path()
+local ret = nav:find_path(0, 0, 1, 7)
 for k, v in ipairs(ret) do
     print(v[1], v[2])
 end
