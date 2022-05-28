@@ -5,9 +5,9 @@
 #include "lua.h"
 #include "lualib.h"
 
-#include "map.h"
 #include "fibheap.h"
 #include "jps.h"
+#include "map.h"
 #include "smooth.h"
 
 #ifdef __PRINT_DEBUG__
@@ -35,7 +35,7 @@ static inline int setobstacle(lua_State* L, struct map* m, int x, int y) {
     return 0;
 }
 
-static inline void push_table_to_stack(lua_State* L, int x, int y, int num) {
+static inline void push_pos_to_stack(lua_State* L, int x, int y, int num) {
     lua_newtable(L);
     lua_pushinteger(L, x);
     lua_rawseti(L, -2, 1);
@@ -44,12 +44,25 @@ static inline void push_table_to_stack(lua_State* L, int x, int y, int num) {
     lua_rawseti(L, -2, num);
 }
 
-static int insert_mid_jump_point(lua_State* L,
-                                 struct map* m,
-                                 int cur,
-                                 int father,
-                                 int w,
-                                 int num) {
+static void push_path_to_stack(lua_State* L, struct map* m) {
+    lua_newtable(L);
+    int i, x, y;
+    for (i = 0; i < m->path_len; i++) {
+        pos2xy(m, m->path[i], &x, &y);
+        lua_pushinteger(L, x);
+        lua_rawseti(L, -2, 1);
+        lua_pushinteger(L, y);
+        lua_rawseti(L, -2, 2);
+        lua_rawseti(L, -2, i);
+    }
+}
+
+static inline void push_pos_to_path(struct map* m, int pos) {
+    m->path[m->path_len++] = pos;
+}
+
+static int insert_mid_jump_point(struct map* m, int cur, int father) {
+    int w = m->width;
     int dx = cur % w - father % w;
     int dy = cur / w - father / w;
     if (dx == 0 || dy == 0) {
@@ -86,7 +99,7 @@ static int insert_mid_jump_point(lua_State* L,
     int len = m->width * m->height;
     BITSET(m->m, len * 2 + mx + my * w);
 #endif
-    push_table_to_stack(L, mx, my, num + 1);
+    push_pos_to_path(m, xy2pos(m, mx, my));
     return 1;
 }
 
@@ -260,16 +273,9 @@ static int gc(lua_State* L) {
     return 0;
 }
 
-static void form_path(lua_State* L, int last, struct map* m) {
-    lua_newtable(L);
-    int num = 0;
-    int x, y;
-    int w = m->width;
-    int pos = m->start;
-    x = pos % w;
-    y = pos / w;
-    push_table_to_stack(L, x, y, ++num);
-    pos = last;
+static void form_path(struct map* m, int last) {
+    int pos = last;
+    push_pos_to_path(m, m->start);
 #ifdef __RECORD_PATH__
     int len = m->width * m->height;
 #endif
@@ -277,10 +283,8 @@ static void form_path(lua_State* L, int last, struct map* m) {
 #ifdef __RECORD_PATH__
         BITSET(m->m, len * 2 + pos);
 #endif
-        x = pos % w;
-        y = pos / w;
-        push_table_to_stack(L, x, y, ++num);
-        num += insert_mid_jump_point(L, m, pos, m->comefrom[pos], w, num);
+        push_pos_to_path(m, pos);
+        insert_mid_jump_point(m, pos, m->comefrom[pos]);
         pos = m->comefrom[pos];
     }
 }
@@ -323,8 +327,9 @@ static int lnav_find_path(lua_State* L) {
     }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
-        form_path(L, start_pos, m);
+        form_path(m, start_pos);
         smooth_path(m);
+        push_path_to_stack(L, m);
         return 1;
     }
     return 0;
@@ -371,6 +376,8 @@ static int lnewmap(lua_State* L) {
     m->end = -1;
     m->mark_connected = 0;
     m->comefrom = (int*)malloc(len * sizeof(int));
+    m->path_size = 2;
+    m->path = (int*)malloc(m->path_size * sizeof(int));
     m->open_set_map =
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));
     memset(m->m, 0, map_men_len * sizeof(m->m[0]));

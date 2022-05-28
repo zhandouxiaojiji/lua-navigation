@@ -21,7 +21,7 @@
 #define BITCLEAR(a, b) ((a)[BITSLOT(b)] &= ~BITMASK(b))
 #define BITTEST(a, b) ((a)[BITSLOT(b)] & BITMASK(b))
 
-struct map {
+typedef struct map {
     int width;
     int height;
     int start;
@@ -34,13 +34,12 @@ struct map {
     /*
         [map] | [close_set] | [path]
     */
-    int* jump_path; // find path by jps_find_path
-    int* smooth_path; // smooth jump_path;
-    int jump_len;
-    int smooth_len;
+    int* path;
+    int path_len;
+    int path_size;
     char m[0];
 
-};
+} Map;
 
 #define NO_DIRECTION 8
 #define FULL_DIRECTIONSET 255
