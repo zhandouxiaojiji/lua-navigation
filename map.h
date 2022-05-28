@@ -36,7 +36,7 @@ typedef struct map {
     */
     int* path;
     int path_len;
-    int path_size;
+    int path_cap;
     char m[0];
 
 } Map;
@@ -99,5 +99,7 @@ inline void pos2xy(struct map* m, int pos, int* x, int* y) {
 inline int xy2pos(struct map* m, int x, int y) {
     return m->width * y + x;
 }
+
+void push_pos_to_path(Map* m, int pos);
 
 #endif /* __MAP__ */

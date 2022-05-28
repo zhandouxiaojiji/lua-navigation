@@ -49,16 +49,13 @@ static void push_path_to_stack(lua_State* L, struct map* m) {
     int i, x, y;
     for (i = 0; i < m->path_len; i++) {
         pos2xy(m, m->path[i], &x, &y);
+        lua_newtable(L);
         lua_pushinteger(L, x);
         lua_rawseti(L, -2, 1);
         lua_pushinteger(L, y);
         lua_rawseti(L, -2, 2);
-        lua_rawseti(L, -2, i);
+        lua_rawseti(L, -2, i + 1);
     }
-}
-
-static inline void push_pos_to_path(struct map* m, int pos) {
-    m->path[m->path_len++] = pos;
 }
 
 static int insert_mid_jump_point(struct map* m, int cur, int father) {
@@ -376,8 +373,8 @@ static int lnewmap(lua_State* L) {
     m->end = -1;
     m->mark_connected = 0;
     m->comefrom = (int*)malloc(len * sizeof(int));
-    m->path_size = 2;
-    m->path = (int*)malloc(m->path_size * sizeof(int));
+    m->path_cap = 2;
+    m->path = (int*)malloc(m->path_cap * sizeof(int));
     m->open_set_map =
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));
     memset(m->m, 0, map_men_len * sizeof(m->m[0]));
