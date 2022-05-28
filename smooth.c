@@ -2,7 +2,27 @@
 #include "smooth.h"
 #include "map.h"
 
-void smooth_path(struct map* m) {}
+void smooth_path(struct map* m) {
+    int x1, y1, x2, y2;
+    for (int i = m->path_len - 1; i >= 0; i--) {
+        for (int j = 0; j <= i - 1; j++) {
+            pos2xy(m, m->path[i], &x1, &y2);
+            pos2xy(m, m->path[j], &x2, &y2);
+            printf("check (%d)%d <=> (%d)%d\n", i, m->path[i], j, m->path[j]);
+            if (check_line_walkable(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
+                                    y2 + 0.5)) {
+                int offset = i - j - 1;
+                for (int k = i - 1; k >= j + 1; k--) {
+                    m->path[k] = m->path[k + offset];
+                    printf("%d <= %d\n", k, k + offset);
+                }
+                m->path_len -= offset;
+                i = j;
+                break;
+            }
+        }
+    }
+}
 
 int check_line_walkable(struct map* m, float x1, float y1, float x2, float y2) {
     if (!map_walkable(m, xy2pos(m, (int)x1, (int)y1)) ||
