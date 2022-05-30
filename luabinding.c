@@ -298,6 +298,46 @@ static int lnav_check_line_walkable(lua_State* L) {
 
 static int lnav_find_path(lua_State* L) {
     struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    float float_x = luaL_checknumber(L, 2);
+    float float_y = luaL_checknumber(L, 3);
+    int x = float_x;
+    int y = float_y;
+    if (check_in_map(x, y, m->width, m->height)) {
+        m->start = m->width * y + x;
+    } else {
+        luaL_error(L, "Position (%d,%d) is out of map", x, y);
+    }
+    float_x = luaL_checkinteger(L, 4);
+    float_y = luaL_checkinteger(L, 5);
+    x = float_x;
+    y = float_y;
+    if (check_in_map(x, y, m->width, m->height)) {
+        m->end = m->width * y + x;
+    } else {
+        luaL_error(L, "Position (%d,%d) is out of map", x, y);
+    }
+    if (BITTEST(m->m, m->start)) {
+        luaL_error(L, "start pos(%d,%d) is in block", m->start % m->width,
+                   m->start / m->width);
+        return 0;
+    }
+    if (BITTEST(m->m, m->end)) {
+        luaL_error(L, "end pos(%d,%d) is in block", m->end % m->width,
+                   m->end / m->width);
+        return 0;
+    }
+    int start_pos = jps_find_path(m);
+    if (start_pos >= 0) {
+        form_path(m, start_pos);
+        smooth_path(m);
+        push_path_to_stack(L, m);
+        return 1;
+    }
+    return 0;
+}
+
+static int lnav_find_path_by_grid(lua_State* L) {
+    struct map* m = luaL_checkudata(L, 1, MT_NAME);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     if (check_in_map(x, y, m->width, m->height)) {
@@ -338,6 +378,7 @@ static int lmetatable(lua_State* L) {
                         {"add_blockset", lnav_blockset},
                         {"clear_block", lnav_clear_block},
                         {"clear_allblock", lnav_clear_allblock},
+                        {"find_path_by_grid", lnav_find_path_by_grid},
                         {"find_path", lnav_find_path},
                         {"check_line_walkable", lnav_check_line_walkable},
                         {"mark_connected", lnav_mark_connected},
