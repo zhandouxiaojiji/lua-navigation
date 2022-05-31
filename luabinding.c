@@ -1,4 +1,5 @@
 #include <limits.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "lauxlib.h"
@@ -49,18 +50,52 @@ static void push_path_to_istack(lua_State* L, struct map* m) {
     }
 }
 
-static void push_path_to_fstack(lua_State* L, struct map* m) {
+static void push_fpos(lua_State* L, float fx, float fy, int num) {
     lua_newtable(L);
-    int i, x, y;
-    for (i = 0; i < m->ipath_len; i++) {
-        pos2xy(m, m->ipath[i], &x, &y);
-        lua_newtable(L);
-        lua_pushnumber(L, x);
-        lua_rawseti(L, -2, 1);
-        lua_pushnumber(L, y);
-        lua_rawseti(L, -2, 2);
-        lua_rawseti(L, -2, i + 1);
+    lua_pushnumber(L, fx);
+    lua_rawseti(L, -2, 1);
+    lua_pushnumber(L, fy);
+    lua_rawseti(L, -2, 2);
+    lua_rawseti(L, -2, num);
+}
+
+static void push_path_to_fstack(lua_State* L,
+                                struct map* m,
+                                float fx1,
+                                float fy1,
+                                float fx2,
+                                float fy2) {
+    lua_newtable(L);
+    int i, ix, iy;
+    float fx, fy;
+    int num = 1;
+    if (m->ipath_len < 2) {
+        return;
     }
+
+    push_fpos(L, fx1, fy1, num++);
+    pos2xy(m, m->ipath[2], &ix, &iy);
+    if (!check_line_walkable(m, fx1, fy1, ix + 0.5, iy + 0.5)) {
+        // 插入起点到第二个路点间的拐点
+        fx = fx1 < ix + 0.5 ? floor(fx1) : ceil(fx1);
+        fy = fy1 < ix + 0.5 ? floor(fy1) : ceil(fy1);
+        push_fpos(L, fx, fy, num++);
+    }
+
+    for (i = 1; i < m->ipath_len - 1; i++) {
+        pos2xy(m, m->ipath[i], &ix, &iy);
+        push_fpos(L, ix, iy, num++);
+    }
+    if (m->ipath_len > 2) {
+        // 插入倒数第二个路点到终点间的拐点
+        pos2xy(m, m->ipath[m->ipath_len - 2], &ix, &iy);
+        if (!check_line_walkable(m, ix + 0.5, iy + 0.5, fx2, fy2)) {
+            fx = fx2 < ix + 0.5 ? floor(fx2) : ceil(fx2);
+            fy = fy2 < ix + 0.5 ? floor(fy2) : ceil(fy2);
+            push_fpos(L, fx, fy, num++);
+        }
+    }
+    push_fpos(L, fx2, fy2, num++);
 }
 
 static int insert_mid_jump_point(struct map* m, int cur, int father) {
@@ -275,7 +310,7 @@ static int gc(lua_State* L) {
     return 0;
 }
 
-static void form_path(struct map* m, int last) {
+static void form_ipath(struct map* m, int last) {
     int pos = last;
     push_pos_to_ipath(m, m->start);
 #ifdef __RECORD_PATH__
@@ -303,19 +338,19 @@ static int lnav_check_line_walkable(lua_State* L) {
 
 static int lnav_find_path(lua_State* L) {
     struct map* m = luaL_checkudata(L, 1, MT_NAME);
-    float float_x = luaL_checknumber(L, 2);
-    float float_y = luaL_checknumber(L, 3);
-    int x = float_x;
-    int y = float_y;
+    float fx1 = luaL_checknumber(L, 2);
+    float fy1 = luaL_checknumber(L, 3);
+    int x = fx1;
+    int y = fy1;
     if (check_in_map(x, y, m->width, m->height)) {
         m->start = m->width * y + x;
     } else {
         luaL_error(L, "Position (%d,%d) is out of map", x, y);
     }
-    float_x = luaL_checkinteger(L, 4);
-    float_y = luaL_checkinteger(L, 5);
-    x = float_x;
-    y = float_y;
+    float fx2 = luaL_checkinteger(L, 4);
+    float fy2 = luaL_checkinteger(L, 5);
+    x = fx2;
+    y = fy2;
     if (check_in_map(x, y, m->width, m->height)) {
         m->end = m->width * y + x;
     } else {
@@ -333,9 +368,9 @@ static int lnav_find_path(lua_State* L) {
     }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
-        form_path(m, start_pos);
+        form_ipath(m, start_pos);
         smooth_path(m);
-        push_path_to_istack(L, m);
+        push_path_to_fstack(L, m, fx1, fy1, fx2, fy2);
         return 1;
     }
     return 0;
@@ -369,7 +404,7 @@ static int lnav_find_path_by_grid(lua_State* L) {
     }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
-        form_path(m, start_pos);
+        form_ipath(m, start_pos);
         smooth_path(m);
         push_path_to_istack(L, m);
         return 1;
@@ -420,8 +455,6 @@ static int lnewmap(lua_State* L) {
     m->comefrom = (int*)malloc(len * sizeof(int));
     m->ipath_cap = 2;
     m->ipath = (int*)malloc(m->ipath_cap * sizeof(int));
-    m->fpath_cap = 2;
-    m->fpath = (float*)malloc(m->fpath_cap * sizeof(float));
     m->open_set_map =
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));
     memset(m->m, 0, map_men_len * sizeof(m->m[0]));

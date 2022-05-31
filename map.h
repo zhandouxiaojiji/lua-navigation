@@ -39,10 +39,6 @@ typedef struct map {
     int ipath_len;
     int ipath_cap;
     
-    int* fpath; // 浮点型路点，锚点为格子左下角
-    int fpath_len;
-    int fpath_cap;
-    
     char m[0];
 
 } Map;
