@@ -34,9 +34,15 @@ typedef struct map {
     /*
         [map] | [close_set] | [path]
     */
-    int* path;
-    int path_len;
-    int path_cap;
+    
+    int* ipath; // 整型路点，锚点为格子中心
+    int ipath_len;
+    int ipath_cap;
+    
+    int* fpath; // 浮点型路点，锚点为格子左下角
+    int fpath_len;
+    int fpath_cap;
+    
     char m[0];
 
 } Map;
@@ -100,6 +106,6 @@ inline int xy2pos(struct map* m, int x, int y) {
     return m->width * y + x;
 }
 
-void push_pos_to_path(Map* m, int pos);
+void push_pos_to_ipath(Map* m, int pos);
 
 #endif /* __MAP__ */
