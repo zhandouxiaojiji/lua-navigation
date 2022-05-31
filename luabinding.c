@@ -41,6 +41,7 @@ static void push_path_to_istack(lua_State* L, struct map* m) {
     int i, x, y;
     for (i = 0; i < m->ipath_len; i++) {
         pos2xy(m, m->ipath[i], &x, &y);
+        printf("pos:%d x:%d y:%d\n", m->ipath[i], x, y);
         lua_newtable(L);
         lua_pushinteger(L, x);
         lua_rawseti(L, -2, 1);
@@ -86,6 +87,7 @@ static void push_path_to_fstack(lua_State* L,
         pos2xy(m, m->ipath[i], &ix, &iy);
         push_fpos(L, ix, iy, num++);
     }
+
     if (m->ipath_len > 2) {
         // 插入倒数第二个路点到终点间的拐点
         pos2xy(m, m->ipath[m->ipath_len - 2], &ix, &iy);
@@ -312,6 +314,7 @@ static int gc(lua_State* L) {
 
 static void form_ipath(struct map* m, int last) {
     int pos = last;
+    m->ipath_len = 0;
     push_pos_to_ipath(m, m->start);
 #ifdef __RECORD_PATH__
     int len = m->width * m->height;
@@ -347,8 +350,8 @@ static int lnav_find_path(lua_State* L) {
     } else {
         luaL_error(L, "Position (%d,%d) is out of map", x, y);
     }
-    float fx2 = luaL_checkinteger(L, 4);
-    float fy2 = luaL_checkinteger(L, 5);
+    float fx2 = luaL_checknumber(L, 4);
+    float fy2 = luaL_checknumber(L, 5);
     x = fx2;
     y = fy2;
     if (check_in_map(x, y, m->width, m->height)) {
@@ -454,6 +457,7 @@ static int lnewmap(lua_State* L) {
     m->mark_connected = 0;
     m->comefrom = (int*)malloc(len * sizeof(int));
     m->ipath_cap = 2;
+    m->ipath_len = 0;
     m->ipath = (int*)malloc(m->ipath_cap * sizeof(int));
     m->open_set_map =
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));

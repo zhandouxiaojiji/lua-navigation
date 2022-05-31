@@ -7,12 +7,35 @@ local nav = navigation.new {
     }
 }
 
-print("========================")
-local ret = nav:find_path(0, 0, 1, 7)
-for k, v in ipairs(ret) do
-    print(v[1], v[2])
+local function test_line_walkable(x1, y1, x2, y2)
+    local ret = nav:check_line_walkable(x1, y1, x2, y2)
+    print(string.format("check_line_walkable (%s, %s) => (%s, %s), %s", x1, y1, x2, y2, ret))
+    return ret
 end
-print("========================")
 
-print("check_line_walkable", nav:check_line_walkable(0, 0, 1, 7));
-print("check_line_walkable", nav:check_line_walkable(0, 0, 3.5, 1));
+local function test_find_path_by_grid(x1, y1, x2, y2)
+    print("========================")
+    print(string.format("find path by grid (%s, %s) => (%s, %s)", x1, y1, x2, y2))
+    local ret = nav:find_path_by_grid(x1, y1, x2, y2)
+    for _, v in ipairs(ret) do
+        print(v[1], v[2])
+    end
+    print("========================")
+end
+
+local function test_find_path(x1, y1, x2, y2)
+    print("========================")
+    print(string.format("find path (%s, %s) => (%s, %s)", x1, y1, x2, y2))
+    local ret = nav:find_path(x1, y1, x2, y2)
+    for _, v in ipairs(ret) do
+        print(v[1], v[2])
+    end
+    print("========================")
+end
+
+test_line_walkable(0, 0, 1, 7)
+test_line_walkable(0, 0, 3.5, 7)
+
+test_find_path(0, 0, 1, 7.3)
+test_find_path(0, 0, 1, 7.3)
+test_find_path_by_grid(0, 0, 1, 7)
