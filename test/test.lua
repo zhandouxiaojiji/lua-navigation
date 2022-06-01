@@ -33,9 +33,8 @@ local function test_find_path(x1, y1, x2, y2)
     print("========================")
 end
 
-test_line_walkable(0, 0, 1, 7)
-test_line_walkable(0, 0, 3.5, 7)
+test_line_walkable(0, 0, 1, 3)
+test_line_walkable(0, 0, 3.5, 3)
 
-test_find_path(0, 0, 1, 7.3)
-test_find_path(0, 0, 1, 7.3)
-test_find_path_by_grid(0, 0, 1, 7)
+test_find_path(0, 0, 1, 3.3)
+test_find_path_by_grid(0, 0, 1, 3)

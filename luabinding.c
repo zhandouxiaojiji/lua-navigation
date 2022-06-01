@@ -39,7 +39,8 @@ static inline int setobstacle(lua_State* L, struct map* m, int x, int y) {
 static void push_path_to_istack(lua_State* L, struct map* m) {
     lua_newtable(L);
     int i, x, y;
-    for (i = 0; i < m->ipath_len; i++) {
+    int num = 1;
+    for (i = m->ipath_len - 1; i >= 0; i--) {
         pos2xy(m, m->ipath[i], &x, &y);
         printf("pos:%d x:%d y:%d\n", m->ipath[i], x, y);
         lua_newtable(L);
@@ -47,7 +48,7 @@ static void push_path_to_istack(lua_State* L, struct map* m) {
         lua_rawseti(L, -2, 1);
         lua_pushinteger(L, y);
         lua_rawseti(L, -2, 2);
-        lua_rawseti(L, -2, i + 1);
+        lua_rawseti(L, -2, num ++);
     }
 }
 
@@ -315,7 +316,6 @@ static int gc(lua_State* L) {
 static void form_ipath(struct map* m, int last) {
     int pos = last;
     m->ipath_len = 0;
-    push_pos_to_ipath(m, m->start);
 #ifdef __RECORD_PATH__
     int len = m->width * m->height;
 #endif
@@ -327,6 +327,7 @@ static void form_ipath(struct map* m, int last) {
         insert_mid_jump_point(m, pos, m->comefrom[pos]);
         pos = m->comefrom[pos];
     }
+    push_pos_to_ipath(m, m->start);
 }
 
 static int lnav_check_line_walkable(lua_State* L) {
