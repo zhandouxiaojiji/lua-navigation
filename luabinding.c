@@ -76,7 +76,7 @@ static void push_path_to_fstack(lua_State* L,
     }
 
     push_fpos(L, fx1, fy1, num++);
-    pos2xy(m, m->ipath[2], &ix, &iy);
+    pos2xy(m, m->ipath[1], &ix, &iy);
     if (!check_line_walkable(m, fx1, fy1, ix + 0.5, iy + 0.5)) {
         // 插入起点到第二个路点间的拐点
         fx = fx1 < ix + 0.5 ? floor(fx1) : ceil(fx1);
