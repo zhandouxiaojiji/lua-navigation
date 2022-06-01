@@ -11,5 +11,5 @@ void push_pos_to_ipath(Map* m, int ipos) {
         free(old_path);
     }
     m->ipath[m->ipath_len - 1] = ipos;
-    printf("add pos to ipath %d\n", m->ipath[m->ipath_len - 1]);
+    // printf("add pos to ipath %d\n", m->ipath[m->ipath_len - 1]);
 }

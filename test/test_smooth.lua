@@ -37,3 +37,4 @@ nav:dump()
 
 -- test_find_path(1.5, 3.5, 2.5, 2.5)
 test_find_path(1.1, 3.1, 2.1, 2.1)
+test_find_path(2.1, 2.1, 1.1, 3.1)

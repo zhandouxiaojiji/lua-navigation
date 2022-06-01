@@ -15,16 +15,19 @@ int check_line_walkable(Map* m, float x1, float y1, float x2, float y2) {
     int max_y = y1 < y2 ? (int)y2 : (int)y1;
 
     int x, y;
+    // printf("check_line_walkable %d %d\n", min_x, max_x);
     for (x = min_x + 1; x <= max_x; ++x) {
         y = (int)(k * ((float)x - x1) + y1);
-        if (!map_walkable(m, xy2pos(m, x, y))) {
+        if (!map_walkable(m, xy2pos(m, x, y)) ||
+            !map_walkable(m, xy2pos(m, x - 1, y))) {
             return 0;
         }
     }
 
     for (y = min_y + 1; y <= max_y; ++y) {
         x = (int)((y - y1) / k + x1);
-        if (!map_walkable(m, xy2pos(m, x, y))) {
+        if (!map_walkable(m, xy2pos(m, x, y)) ||
+            !map_walkable(m, xy2pos(m, x, y - 1))) {
             return 0;
         }
     }
@@ -38,11 +41,11 @@ void smooth_path(Map* m) {
         for (int j = 0; j <= i - 1; j++) {
             pos2xy(m, m->ipath[i], &x1, &y1);
             pos2xy(m, m->ipath[j], &x2, &y2);
-            printf("check (%d)%d <=> (%d)%d\n", i, m->ipath[i], j, m->ipath[j]);
+            // printf("check (%d)%d <=> (%d)%d\n", i, m->ipath[i], j, m->ipath[j]);
             if (check_line_walkable(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
                                     y2 + 0.5)) {
                 int offset = i - j - 1;
-                printf("merge (%d) to (%d)\n", i, j);
+                // printf("merge (%d) to (%d)\n", i, j);
                 for (int k = i - 1; k >= j + 1; k--) {
                     m->ipath[k] = m->ipath[k + offset];
                     printf("%d <= %d\n", k, k + offset);

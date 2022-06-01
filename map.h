@@ -95,7 +95,7 @@ inline int dist(int one, int two, int w) {
 
 inline void pos2xy(struct map* m, int pos, int* x, int* y) {
     *x = pos % m->width;
-    *y = pos / m->width; 
+    *y = pos / m->width;
 }
 
 inline int xy2pos(struct map* m, int x, int y) {
