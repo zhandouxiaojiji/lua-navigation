@@ -407,10 +407,13 @@ static int lnav_find_path_by_grid(lua_State* L) {
                    m->end / m->width);
         return 0;
     }
+    int without_smooth = lua_toboolean(L, 6);
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
         form_ipath(m, start_pos);
-        smooth_path(m);
+        if (!without_smooth) {
+            smooth_path(m);
+        }
         push_path_to_istack(L, m);
         return 1;
     }
