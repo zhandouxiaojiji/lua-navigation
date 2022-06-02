@@ -3,6 +3,6 @@
 
 #include "map.h"
 
-int jps_find_path(struct map* m);
+int jps_find_path(Map* m);
 
 #endif /* __JPS__ */

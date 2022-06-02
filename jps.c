@@ -1,7 +1,7 @@
 #include "jps.h"
 #include "fibheap.h"
 
-static struct node_data *construct(struct map *m, int pos, int g_value,
+static struct node_data *construct(Map *m, int pos, int g_value,
             unsigned char dir) {
     struct node_data *node = (struct node_data *)malloc(sizeof(struct node_data));
     node->pos = pos;
@@ -51,11 +51,11 @@ static int get_next_pos(int pos, unsigned char dir, int w, int h) {
     return x + y * w;
 }
 
-static inline int walkable(struct map *m, int pos, int cur_dir, int next_dir) {
+static inline int walkable(Map *m, int pos, int cur_dir, int next_dir) {
     return map_walkable(m, get_next_pos(pos, (cur_dir + (next_dir)) % 8, m->width, m->height));
 }
 
-static unsigned char natural_dir(int pos, unsigned char cur_dir, struct map *m) {
+static unsigned char natural_dir(int pos, unsigned char cur_dir, Map *m) {
     unsigned char dir_set = EMPTY_DIRECTIONSET;
     if (cur_dir == NO_DIRECTION) {
         return FULL_DIRECTIONSET;
@@ -84,7 +84,7 @@ static unsigned char natural_dir(int pos, unsigned char cur_dir, struct map *m) 
     return dir_set;
 }
 
-static unsigned char force_dir(int pos, unsigned char cur_dir, struct map *m) {
+static unsigned char force_dir(int pos, unsigned char cur_dir, Map *m) {
     if (cur_dir == NO_DIRECTION) {
         return EMPTY_DIRECTIONSET;
     }
@@ -138,7 +138,7 @@ static unsigned char next_dir(unsigned char *dirs) {
     return NO_DIRECTION;
 }
 
-static void put_in_open_set(struct heap *open_set, struct map *m, int pos,
+static void put_in_open_set(struct heap *open_set, Map *m, int pos,
             int len, struct node_data *node, unsigned char dir) {
     if (!BITTEST(m->m, len + pos)) {
         int ng_value = node->g_value + dist(pos, node->pos, m->width);
@@ -158,7 +158,7 @@ static void put_in_open_set(struct heap *open_set, struct map *m, int pos,
 }
 
 #ifdef __CONNER_SOLVE__
-static int diagonal_obs(struct map *m, int pos, int new_pos, unsigned char dir) {
+static int diagonal_obs(Map *m, int pos, int new_pos, unsigned char dir) {
     switch (dir) {
         case 1:
             return BITTEST(m->m, pos + 1) || BITTEST(m->m, new_pos - 1);
@@ -175,7 +175,7 @@ static int diagonal_obs(struct map *m, int pos, int new_pos, unsigned char dir) 
 #endif
 
 static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir,
-            struct map *m, struct node_data *node) {
+            Map *m, struct node_data *node) {
     int w = m->width;
     int h = m->height;
     int len = w * h;
@@ -218,7 +218,7 @@ static inline int compare(struct node_data* old, struct node_data* new) {
     }
 }
 
-int jps_find_path(struct map *m) {
+int jps_find_path(Map *m) {
     int len = m->width * m->height;
     memset(&m->m[BITSLOT(len) + 1], 0, (BITSLOT(len) + 1) * sizeof(m->m[0]));
     memset(m->comefrom, -1, len * sizeof(int));

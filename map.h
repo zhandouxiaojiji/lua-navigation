@@ -8,13 +8,6 @@
 #include "lua.h"
 #include "lualib.h"
 
-
-#ifdef __PRINT_DEBUG__
-#define deep_print(format, ...) printf(format, ##__VA_ARGS__)
-#else
-#define deep_print(format, ...)
-#endif
-
 #define BITMASK(b) (1 << ((b) % CHAR_BIT))
 #define BITSLOT(b) ((b) / CHAR_BIT)
 #define BITSET(a, b) ((a)[BITSLOT(b)] |= BITMASK(b))
@@ -72,7 +65,7 @@ inline int check_in_map_pos(int pos, int limit) {
     return pos >= 0 && pos < limit;
 }
 
-inline int map_walkable(struct map* m, int pos) {
+inline int map_walkable(Map* m, int pos) {
     return check_in_map_pos(pos, m->width * m->height) && !BITTEST(m->m, pos);
 }
 
@@ -93,15 +86,16 @@ inline int dist(int one, int two, int w) {
     }
 }
 
-inline void pos2xy(struct map* m, int pos, int* x, int* y) {
+inline void pos2xy(Map* m, int pos, int* x, int* y) {
     *x = pos % m->width;
     *y = pos / m->width;
 }
 
-inline int xy2pos(struct map* m, int x, int y) {
+inline int xy2pos(Map* m, int x, int y) {
     return m->width * y + x;
 }
 
 void push_pos_to_ipath(Map* m, int pos);
+void init_map(Map* m, int width, int height, int map_men_len);
 
 #endif /* __MAP__ */

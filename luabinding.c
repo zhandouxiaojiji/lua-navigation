@@ -11,12 +11,6 @@
 #include "map.h"
 #include "smooth.h"
 
-#ifdef __PRINT_DEBUG__
-#define deep_print(format, ...) printf(format, ##__VA_ARGS__)
-#else
-#define deep_print(format, ...)
-#endif
-
 #define MT_NAME ("_nav_metatable")
 
 static inline int getfield(lua_State* L, const char* f) {
@@ -28,7 +22,7 @@ static inline int getfield(lua_State* L, const char* f) {
     return v;
 }
 
-static inline int setobstacle(lua_State* L, struct map* m, int x, int y) {
+static inline int setobstacle(lua_State* L, Map* m, int x, int y) {
     if (!check_in_map(x, y, m->width, m->height)) {
         luaL_error(L, "Position (%d,%d) is out of map", x, y);
     }
@@ -36,7 +30,7 @@ static inline int setobstacle(lua_State* L, struct map* m, int x, int y) {
     return 0;
 }
 
-static void push_path_to_istack(lua_State* L, struct map* m) {
+static void push_path_to_istack(lua_State* L, Map* m) {
     lua_newtable(L);
     int i, x, y;
     int num = 1;
@@ -62,7 +56,7 @@ static void push_fpos(lua_State* L, float fx, float fy, int num) {
 }
 
 static void push_path_to_fstack(lua_State* L,
-                                struct map* m,
+                                Map* m,
                                 float fx1,
                                 float fy1,
                                 float fx2,
@@ -102,7 +96,7 @@ static void push_path_to_fstack(lua_State* L,
     push_fpos(L, fx2, fy2, num++);
 }
 
-static int insert_mid_jump_point(struct map* m, int cur, int father) {
+static int insert_mid_jump_point(Map* m, int cur, int father) {
     int w = m->width;
     int dx = cur % w - father % w;
     int dy = cur / w - father / w;
@@ -144,7 +138,7 @@ static int insert_mid_jump_point(struct map* m, int cur, int father) {
     return 1;
 }
 
-static void flood_mark(struct map* m,
+static void flood_mark(Map* m,
                        int* visited,
                        int pos,
                        int connected_num,
@@ -168,7 +162,7 @@ static void flood_mark(struct map* m,
 }
 
 static int lnav_add_block(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     if (!check_in_map(x, y, m->width, m->height)) {
@@ -179,7 +173,7 @@ static int lnav_add_block(lua_State* L) {
 }
 
 static int lnav_blockset(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     luaL_checktype(L, 2, LUA_TTABLE);
     lua_settop(L, 2);
     int i = 1;
@@ -196,7 +190,7 @@ static int lnav_blockset(lua_State* L) {
 }
 
 static int lnav_clear_block(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     if (!check_in_map(x, y, m->width, m->height)) {
@@ -207,7 +201,7 @@ static int lnav_clear_block(lua_State* L) {
 }
 
 static int lnav_clear_allblock(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     int i;
     for (i = 0; i < m->width * m->height; i++) {
         BITCLEAR(m->m, i);
@@ -216,7 +210,7 @@ static int lnav_clear_allblock(lua_State* L) {
 }
 
 static int lnav_mark_connected(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     int len = m->width * m->height;
     if (!m->mark_connected) {
         m->connected = (int*)malloc(len * sizeof(int));
@@ -237,7 +231,7 @@ static int lnav_mark_connected(lua_State* L) {
 }
 
 static int lnav_dump_connected(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     printf("dump map connected state!!!!!!\n");
     if (!m->mark_connected) {
         printf("have not mark connected.\n");
@@ -259,7 +253,7 @@ static int lnav_dump_connected(lua_State* L) {
 }
 
 static int lnav_dump(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     printf("dump map state!!!!!!\n");
     int i, pos;
 #ifdef __RECORD_PATH__
@@ -305,7 +299,7 @@ static int lnav_dump(lua_State* L) {
 }
 
 static int gc(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     free(m->comefrom);
     free(m->open_set_map);
     if (m->mark_connected) {
@@ -314,7 +308,7 @@ static int gc(lua_State* L) {
     return 0;
 }
 
-static void form_ipath(struct map* m, int last) {
+static void form_ipath(Map* m, int last) {
     int pos = last;
     m->ipath_len = 0;
 #ifdef __RECORD_PATH__
@@ -332,7 +326,7 @@ static void form_ipath(struct map* m, int last) {
 }
 
 static int lnav_check_line_walkable(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     float x1 = luaL_checknumber(L, 2);
     float y1 = luaL_checknumber(L, 3);
     float x2 = luaL_checknumber(L, 4);
@@ -342,7 +336,7 @@ static int lnav_check_line_walkable(lua_State* L) {
 }
 
 static int lnav_find_path(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     float fx1 = luaL_checknumber(L, 2);
     float fy1 = luaL_checknumber(L, 3);
     int x = fx1;
@@ -382,7 +376,7 @@ static int lnav_find_path(lua_State* L) {
 }
 
 static int lnav_find_path_by_grid(lua_State* L) {
-    struct map* m = luaL_checkudata(L, 1, MT_NAME);
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
     int x = luaL_checkinteger(L, 2);
     int y = luaL_checkinteger(L, 3);
     if (check_in_map(x, y, m->width, m->height)) {
@@ -455,18 +449,7 @@ static int lnewmap(lua_State* L) {
     int map_men_len = (BITSLOT(len) + 1) * 2;
 #endif
     Map* m = lua_newuserdata(L, sizeof(Map) + map_men_len * sizeof(m->m[0]));
-    m->width = width;
-    m->height = height;
-    m->start = -1;
-    m->end = -1;
-    m->mark_connected = 0;
-    m->comefrom = (int*)malloc(len * sizeof(int));
-    m->ipath_cap = 2;
-    m->ipath_len = 0;
-    m->ipath = (int*)malloc(m->ipath_cap * sizeof(int));
-    m->open_set_map =
-        (struct heap_node**)malloc(len * sizeof(struct heap_node*));
-    memset(m->m, 0, map_men_len * sizeof(m->m[0]));
+    init_map(m, width, height, map_men_len);
     if (lua_getfield(L, 1, "obstacle") == LUA_TTABLE) {
         int i = 1;
         while (lua_geti(L, -1, i) == LUA_TTABLE) {
