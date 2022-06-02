@@ -45,10 +45,10 @@ void smooth_path(Map* m) {
             if (check_line_walkable(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
                                     y2 + 0.5)) {
                 int offset = i - j - 1;
-                printf("merge (%d) to (%d) offset:%d\n", i, j, offset);
+                // printf("merge (%d) to (%d) offset:%d\n", i, j, offset);
                 for (int k = j + 1; k <= m->ipath_len - 1 - offset; k++) {
                     m->ipath[k] = m->ipath[k + offset];
-                    printf("%d <= %d\n", k, k + offset);
+                    // printf("%d <= %d\n", k, k + offset);
                 }
                 m->ipath_len -= offset;
                 i = j;

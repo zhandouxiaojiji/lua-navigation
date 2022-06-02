@@ -1,7 +1,6 @@
 -- 测试小地图
 local test = require "test.test_api"
-local navigation = require "navigation"
-local nav = navigation.new {
+local nav = test.set_nav {
     w = 20,
     h = 20,
     obstacle = {}
@@ -12,5 +11,11 @@ for i = 1, 18 do
 end
 
 nav:dump()
-test.print_find_path(nav, 0.1, 10.2, 15.2, 15.9)
-test.print_find_path_by_grid(0, 10, 15, 15)
+test.set_start(0.1, 10.6)
+test.set_end(15.6, 15.2)
+test.print_find_path()
+
+test.set_start(0, 10)
+test.set_end(15, 15)
+test.print_find_path_by_grid()
+test.print_find_path_by_grid(true)

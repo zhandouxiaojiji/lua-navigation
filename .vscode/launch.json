@@ -10,7 +10,7 @@
             "name": "Launch(gdb)",
             "program": "lua",
             "cwd": "${workspaceRoot}",
-            "programArgs": "test/test_smooth.lua"
+            "programArgs": "test/test.lua"
         }
     ]
 }
