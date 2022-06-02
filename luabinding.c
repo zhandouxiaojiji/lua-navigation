@@ -42,7 +42,7 @@ static void push_path_to_istack(lua_State* L, struct map* m) {
     int num = 1;
     for (i = m->ipath_len - 1; i >= 0; i--) {
         pos2xy(m, m->ipath[i], &x, &y);
-        printf("pos:%d x:%d y:%d\n", m->ipath[i], x, y);
+        // printf("pos:%d x:%d y:%d\n", m->ipath[i], x, y);
         lua_newtable(L);
         lua_pushinteger(L, x);
         lua_rawseti(L, -2, 1);
@@ -85,9 +85,9 @@ static void push_path_to_fstack(lua_State* L,
         push_fpos(L, fx, fy, num++);
     }
 
-    for (i = m->ipath_len - 1; i >= 2; i--) {
+    for (i = m->ipath_len - 2; i >= 1; i--) {
         pos2xy(m, m->ipath[i], &ix, &iy);
-        push_fpos(L, ix, iy, num++);
+        push_fpos(L, ix + 0.5, iy + 0.5, num++);
     }
 
     if (m->ipath_len > 2) {

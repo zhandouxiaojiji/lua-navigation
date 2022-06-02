@@ -1,17 +1,13 @@
+-- 测试小地图
 local navigation = require "navigation"
 local nav = navigation.new {
-    w = 5,
-    h = 5,
-    obstacle = {
-        {1, 2},
-        {2, 1},
-    }
+    w = 20,
+    h = 20,
+    obstacle = {}
 }
 
-local function test_line_walkable(x1, y1, x2, y2)
-    local ret = nav:check_line_walkable(x1, y1, x2, y2)
-    print(string.format("check_line_walkable (%s, %s) => (%s, %s), %s", x1, y1, x2, y2, ret))
-    return ret
+for i = 1, 18 do
+    nav:add_block(4, i)
 end
 
 local function test_find_path_by_grid(x1, y1, x2, y2)
@@ -35,8 +31,5 @@ local function test_find_path(x1, y1, x2, y2)
 end
 
 nav:dump()
-
--- test_find_path(1.5, 3.5, 2.5, 2.5)
-test_find_path(1.1, 3.1, 2.1, 2.1)
-test_find_path(2.1, 2.1, 1.1, 3.1)
-test_find_path(2.5, 2.5, 1.5, 1.5)
+test_find_path_by_grid(0, 10, 15, 15)
+test_find_path(0.1, 10.2, 15.2, 15.9)

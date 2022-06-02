@@ -38,15 +38,15 @@ int check_line_walkable(Map* m, float x1, float y1, float x2, float y2) {
 void smooth_path(Map* m) {
     int x1, y1, x2, y2;
     for (int i = m->ipath_len - 1; i >= 0; i--) {
-        for (int j = 0; j <= i - 1; j++) {
+        for (int j = 0; j < i - 1; j++) {
             pos2xy(m, m->ipath[i], &x1, &y1);
             pos2xy(m, m->ipath[j], &x2, &y2);
             // printf("check (%d)%d <=> (%d)%d\n", i, m->ipath[i], j, m->ipath[j]);
             if (check_line_walkable(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
                                     y2 + 0.5)) {
                 int offset = i - j - 1;
-                // printf("merge (%d) to (%d)\n", i, j);
-                for (int k = i - 1; k >= j + 1; k--) {
+                printf("merge (%d) to (%d) offset:%d\n", i, j, offset);
+                for (int k = j + 1; k <= m->ipath_len - 1 - offset; k++) {
                     m->ipath[k] = m->ipath[k + offset];
                     printf("%d <= %d\n", k, k + offset);
                 }
