@@ -355,6 +355,12 @@ static int lnav_find_path(lua_State* L) {
     } else {
         luaL_error(L, "Position (%d,%d) is out of map", x, y);
     }
+    if(floor(fx1) == floor(fx1) && floor(fx2) == floor(fx2)) {
+        lua_newtable(L);
+        push_fpos(L, fx1, fy1, 1);
+        push_fpos(L, fx2, fy2, 2);
+        return 1;
+    }
     if (BITTEST(m->m, m->start)) {
         luaL_error(L, "start pos(%d,%d) is in block", m->start % m->width,
                    m->start / m->width);
