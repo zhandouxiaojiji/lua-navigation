@@ -355,7 +355,7 @@ static int lnav_find_path(lua_State* L) {
     } else {
         luaL_error(L, "Position (%d,%d) is out of map", x, y);
     }
-    if(floor(fx1) == floor(fx1) && floor(fx2) == floor(fx2)) {
+    if(floor(fx1) == floor(fx2) && floor(fy1) == floor(fy2)) {
         lua_newtable(L);
         push_fpos(L, fx1, fy1, 1);
         push_fpos(L, fx2, fy2, 2);
