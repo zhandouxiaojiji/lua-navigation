@@ -362,13 +362,13 @@ static int lnav_find_path(lua_State* L) {
         return 1;
     }
     if (BITTEST(m->m, m->start)) {
-        luaL_error(L, "start pos(%d,%d) is in block", m->start % m->width,
-                   m->start / m->width);
+        // luaL_error(L, "start pos(%d,%d) is in block", m->start % m->width,
+        //            m->start / m->width);
         return 0;
     }
     if (BITTEST(m->m, m->end)) {
-        luaL_error(L, "end pos(%d,%d) is in block", m->end % m->width,
-                   m->end / m->width);
+        // luaL_error(L, "end pos(%d,%d) is in block", m->end % m->width,
+        //            m->end / m->width);
         return 0;
     }
     int start_pos = jps_find_path(m);
