@@ -172,6 +172,15 @@ static int lnav_add_block(lua_State* L) {
     return 0;
 }
 
+static int lnav_is_block(lua_State* L) {
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int block = BITTEST(m->m, m->width * y + x);
+    lua_pushboolean(L, block);
+    return 1;
+}
+
 static int lnav_blockset(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     luaL_checktype(L, 2, LUA_TTABLE);
@@ -426,6 +435,7 @@ static int lmetatable(lua_State* L) {
                         {"add_blockset", lnav_blockset},
                         {"clear_block", lnav_clear_block},
                         {"clear_allblock", lnav_clear_allblock},
+                        {"is_block", lnav_is_block},
                         {"find_path_by_grid", lnav_find_path_by_grid},
                         {"find_path", lnav_find_path},
                         {"check_line_walkable", lnav_check_line_walkable},
