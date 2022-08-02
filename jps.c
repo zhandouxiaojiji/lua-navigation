@@ -60,27 +60,11 @@ static unsigned char natural_dir(int pos, unsigned char cur_dir, Map *m) {
     if (cur_dir == NO_DIRECTION) {
         return FULL_DIRECTIONSET;
     }
-#ifdef __CONNER_SOLVE__
-    if (dir_is_diagonal(cur_dir)) {
-        if (!walkable(m, pos, cur_dir, 7)) {
-            dir_add(&dir_set, (cur_dir + 1) % 8);
-        } else if (!walkable(m, pos, cur_dir, 1)) {
-            dir_add(&dir_set, (cur_dir + 7) % 8);
-        } else {
-            dir_add(&dir_set, cur_dir);
-            dir_add(&dir_set, (cur_dir + 1) % 8);
-            dir_add(&dir_set, (cur_dir + 7) % 8);
-        }
-    } else {
-        dir_add(&dir_set, cur_dir);
-    }
-#else
     dir_add(&dir_set, cur_dir);
     if (dir_is_diagonal(cur_dir)) {
         dir_add(&dir_set, (cur_dir + 1) % 8);
         dir_add(&dir_set, (cur_dir + 7) % 8);
     }
-#endif
     return dir_set;
 }
 
@@ -90,22 +74,6 @@ static unsigned char force_dir(int pos, unsigned char cur_dir, Map *m) {
     }
     unsigned char dir_set = EMPTY_DIRECTIONSET;
 #define WALKABLE(n) walkable(m, pos, cur_dir, n)
-#ifdef __CONNER_SOLVE__
-    if (!dir_is_diagonal(cur_dir)) {
-        if (WALKABLE(2) && !(WALKABLE(3))) {
-            dir_add(&dir_set, (cur_dir + 2) % 8);
-            if (WALKABLE(1)) {
-                dir_add(&dir_set, (cur_dir + 1) % 8);
-            }
-        }
-        if (WALKABLE(6) && !(WALKABLE(5))) {
-            dir_add(&dir_set, (cur_dir + 6) % 8);
-            if (WALKABLE(7)) {
-                dir_add(&dir_set, (cur_dir + 7) % 8);
-            }
-        }
-    }
-#else
     if (dir_is_diagonal(cur_dir)) {
         if (WALKABLE(6) && !WALKABLE(5)) {
             dir_add(&dir_set, (cur_dir + 6) % 8);
@@ -121,7 +89,6 @@ static unsigned char force_dir(int pos, unsigned char cur_dir, Map *m) {
             dir_add(&dir_set, (cur_dir + 7) % 8);
         }
     }
-#endif
 #undef WALKABLE
     return dir_set;
 }
@@ -140,7 +107,8 @@ static unsigned char next_dir(unsigned char *dirs) {
 
 static void put_in_open_set(struct heap *open_set, Map *m, int pos,
             int len, struct node_data *node, unsigned char dir) {
-    if (!BITTEST(m->m, len + pos)) {
+    // printf("put in open set:%d test:%d\n", pos, BITTEST(m->m, len + pos));
+    if (!BITTEST(m->m, (BITSLOT(len) + 1) * CHAR_BIT + pos)) {
         int ng_value = node->g_value + dist(pos, node->pos, m->width);
         struct heap_node *p = m->open_set_map[pos];
         if (!p) {
@@ -157,23 +125,6 @@ static void put_in_open_set(struct heap *open_set, Map *m, int pos,
     }
 }
 
-#ifdef __CONNER_SOLVE__
-static int diagonal_obs(Map *m, int pos, int new_pos, unsigned char dir) {
-    switch (dir) {
-        case 1:
-            return BITTEST(m->m, pos + 1) || BITTEST(m->m, new_pos - 1);
-        case 3:
-            return BITTEST(m->m, pos + 1) || BITTEST(m->m, new_pos - 1);
-        case 5:
-            return BITTEST(m->m, pos - 1) || BITTEST(m->m, new_pos + 1);
-        case 7:
-            return BITTEST(m->m, pos - 1) || BITTEST(m->m, new_pos + 1);
-        default: return 0;
-    }
-    return 0;
-}
-#endif
-
 static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir,
             Map *m, struct node_data *node) {
     int w = m->width;
@@ -183,11 +134,6 @@ static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir
     if (!map_walkable(m, next_pos)) {
         return 0;
     }
-#ifdef __CONNER_SOLVE__
-    if (dir_is_diagonal(dir) && diagonal_obs(m, pos, next_pos, dir)) { // conner solve diagonal stop by obs
-        return 0;
-    }
-#endif
     if (next_pos == end) {
         put_in_open_set(open_set, m, next_pos, len, node, dir);
         return 1;
@@ -234,7 +180,7 @@ int jps_find_path(Map *m) {
     m->open_set_map[m->start] = fibheap_insert(open_set, node);;
     while ((node = fibheap_pop(open_set))) {
         m->open_set_map[node->pos] = NULL;
-        BITSET(m->m, len + node->pos);
+        BITSET(m->m, (BITSLOT(len) + 1) * CHAR_BIT + node->pos);
         if (node->pos == m->end) {
             fibheap_destroy(open_set);
             return node->pos;

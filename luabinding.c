@@ -130,10 +130,6 @@ static int insert_mid_jump_point(Map* m, int cur, int father) {
         mx = father % w + span;
         my = father / w + span;
     }
-#ifdef __RECORD_PATH__
-    int len = m->width * m->height;
-    BITSET(m->m, len * 2 + mx + my * w);
-#endif
     push_pos_to_ipath(m, xy2pos(m, mx, my));
     return 1;
 }
@@ -256,9 +252,6 @@ static int lnav_dump(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     printf("dump map state!!!!!!\n");
     int i, pos;
-#ifdef __RECORD_PATH__
-    int len = m->width * m->height;
-#endif
     char s[m->width * 2 + 2];
     for (pos = 0, i = 0; i < m->width * m->height; i++) {
         if (i > 0 && i % m->width == 0) {
@@ -270,13 +263,6 @@ static int lnav_dump(lua_State* L) {
         if (BITTEST(m->m, i)) {
             s[pos++] = '*';
             mark = 1;
-        } else {
-#ifdef __RECORD_PATH__
-            if (BITTEST(m->m, len * 2 + i)) {
-                s[pos++] = '0';
-                mark = 1;
-            }
-#endif
         }
         if (i == m->start) {
             s[pos++] = 'S';
@@ -311,13 +297,8 @@ static int gc(lua_State* L) {
 static void form_ipath(Map* m, int last) {
     int pos = last;
     m->ipath_len = 0;
-#ifdef __RECORD_PATH__
-    int len = m->width * m->height;
-#endif
+
     while (m->comefrom[pos] != -1) {
-#ifdef __RECORD_PATH__
-        BITSET(m->m, len * 2 + pos);
-#endif
         push_pos_to_ipath(m, pos);
         insert_mid_jump_point(m, pos, m->comefrom[pos]);
         pos = m->comefrom[pos];
@@ -449,11 +430,8 @@ static int lnewmap(lua_State* L) {
     int height = getfield(L, "h");
     lua_assert(width > 0 && height > 0);
     int len = width * height;
-#ifdef __RECORD_PATH__
-    int map_men_len = (BITSLOT(len) + 1) * 3;
-#else
+
     int map_men_len = (BITSLOT(len) + 1) * 2;
-#endif
     Map* m = lua_newuserdata(L, sizeof(Map) + map_men_len * sizeof(m->m[0]));
     init_map(m, width, height, map_men_len);
     if (lua_getfield(L, 1, "obstacle") == LUA_TTABLE) {
