@@ -140,7 +140,7 @@ static unsigned char next_dir(unsigned char *dirs) {
 
 static void put_in_open_set(struct heap *open_set, Map *m, int pos,
             int len, struct node_data *node, unsigned char dir) {
-    if (!BITTEST(m->m, len + pos)) {
+    if (!BITTEST(m->m, (BITSLOT(len) + 1) * CHAR_BIT + pos)) {
         int ng_value = node->g_value + dist(pos, node->pos, m->width);
         struct heap_node *p = m->open_set_map[pos];
         if (!p) {
@@ -234,7 +234,8 @@ int jps_find_path(Map *m) {
     m->open_set_map[m->start] = fibheap_insert(open_set, node);;
     while ((node = fibheap_pop(open_set))) {
         m->open_set_map[node->pos] = NULL;
-        BITSET(m->m, len + node->pos);
+        BITSET(m->m, (BITSLOT(len) + 1) * CHAR_BIT + node->pos);
+
         if (node->pos == m->end) {
             fibheap_destroy(open_set);
             return node->pos;

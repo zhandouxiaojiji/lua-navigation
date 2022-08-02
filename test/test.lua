@@ -3,7 +3,7 @@ local nav = navigation.new {
     w = 20,
     h = 20,
     obstacle = {
-        {1, 0},
+        -- {1, 0},
     }
 }
 
@@ -33,8 +33,12 @@ local function test_find_path(x1, y1, x2, y2)
     print("========================")
 end
 
-test_line_walkable(0, 0, 1, 3)
-test_line_walkable(0, 0, 3.5, 3)
+-- test_line_walkable(0, 0, 1, 3)
+-- test_line_walkable(0, 0, 3.5, 3)
 
-test_find_path(0, 0, 1, 3.3)
-test_find_path_by_grid(0, 0, 1, 3)
+-- test_find_path(0, 0, 1, 3.3)
+-- test_find_path_by_grid(0, 0, 1, 3)
+
+test_find_path(1, 1, 0, 0)
+test_find_path(0, 0, 1, 1)
+test_find_path(1, 1, 0, 0)
