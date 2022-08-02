@@ -51,7 +51,7 @@ void smooth_path(Map* m) {
                     // printf("%d <= %d\n", k, k + offset);
                 }
                 m->ipath_len -= offset;
-                i = j;
+                i = j + 1;
                 break;
             }
         }
