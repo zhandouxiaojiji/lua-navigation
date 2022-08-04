@@ -55,6 +55,25 @@ static void push_fpos(lua_State* L, float fx, float fy, int num) {
     lua_rawseti(L, -2, num);
 }
 
+static void find_walkable_point_in_cell(Map* m, int center_pos, float fx1, float fy1,
+    float fx2, float fy2, float* x, float* y) {
+    int x0, y0, ix, iy;
+    float fx0, fy0;
+    pos2xy(m, center_pos, &ix, &iy);
+
+    for(x0 = ix; x0 <= ix + 1; x0 ++) {
+        for(y0 = iy; y0 <= iy + 1; y0 ++) {
+            fx0 = x0 == ix ? x0 - 0.1 : x0 + 0.1;
+            fy0 = y0 == iy ? y0 - 0.1 : y0 + 0.1;
+            if(find_line_obstacle(m, fx0, fy0, fx1, fy1) < 0 && find_line_obstacle(m, fx0, fy0, fx2, fy2) < 0) {
+                *x = x0;
+                *y = y0;
+                return;
+            }
+        }
+    }
+}
+
 static void push_path_to_fstack(lua_State* L,
                                 Map* m,
                                 float fx1,
@@ -72,11 +91,15 @@ static void push_path_to_fstack(lua_State* L,
     push_fpos(L, fx1, fy1, num++);
     pos2xy(m, m->ipath[m->ipath_len - 2], &ix, &iy);
 
-    if (!check_line_walkable(m, fx1, fy1, ix + 0.5, iy + 0.5)) {
+    int obs_pos = find_line_obstacle(m, fx1, fy1, ix + 0.5, iy + 0.5);
+    if (obs_pos >= 0) {
         // 插入起点到第二个路点间的拐点
-        fx = fx1 > ix + 0.5 ? floor(fx1) : ceil(fx1);
-        fy = fy1 > iy + 0.5 ? floor(fy1) : ceil(fy1);
-        push_fpos(L, fx, fy, num++);
+        fx = -1;
+        fy = -1;
+        find_walkable_point_in_cell(m, obs_pos, ix + 0.5, iy + 0.5, fx1, fy1, &fx, &fy);
+        if(fx >= 0 && fy >= 0) {
+            push_fpos(L, fx, fy, num++);
+        }
     }
 
     for (i = m->ipath_len - 2; i >= 1; i--) {
@@ -86,11 +109,14 @@ static void push_path_to_fstack(lua_State* L,
 
     if (m->ipath_len > 2) {
         // 插入倒数第二个路点到终点间的拐点
-        pos2xy(m, m->ipath[1], &ix, &iy);
-        if (!check_line_walkable(m, ix + 0.5, iy + 0.5, fx2, fy2)) {
-            fx = fx2 > (float)ix + 0.5 ? floor(fx2) : ceil(fx2);
-            fy = fy2 > (float)iy + 0.5 ? floor(fy2) : ceil(fy2);
-            push_fpos(L, fx, fy, num++);
+        obs_pos = find_line_obstacle(m, ix + 0.5, iy + 0.5, fx2, fy2);
+        if (obs_pos >= 0) {
+            fx = -1;
+            fy = -1;
+            find_walkable_point_in_cell(m, obs_pos, ix + 0.5, iy + 0.5, fx2, fy2, &fx, &fy);
+            if(fx >= 0 && fy >= 0) {
+                push_fpos(L, fx, fy, num++);
+            }
         }
     }
     push_fpos(L, fx2, fy2, num++);
@@ -340,7 +366,7 @@ static int lnav_check_line_walkable(lua_State* L) {
     float y1 = luaL_checknumber(L, 3);
     float x2 = luaL_checknumber(L, 4);
     float y2 = luaL_checknumber(L, 5);
-    lua_pushboolean(L, check_line_walkable(m, x1, y1, x2, y2));
+    lua_pushboolean(L, find_line_obstacle(m, x1, y1, x2, y2) < 0);
     return 1;
 }
 
@@ -438,7 +464,7 @@ static int lmetatable(lua_State* L) {
                         {"is_block", lnav_is_block},
                         {"find_path_by_grid", lnav_find_path_by_grid},
                         {"find_path", lnav_find_path},
-                        {"check_line_walkable", lnav_check_line_walkable},
+                        {"find_line_obstacle", lnav_check_line_walkable},
                         {"mark_connected", lnav_mark_connected},
                         {"dump_connected", lnav_dump_connected},
                         {"dump", lnav_dump},

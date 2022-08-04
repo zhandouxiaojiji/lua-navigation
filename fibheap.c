@@ -4,18 +4,18 @@
 #include <malloc.h>
 #include "fibheap.h"
 
-#define CHECK_MALLOC(X) ({ \
+#define CHECK_MALLOC(X) { \
         if((X)==NULL) { \
             fprintf(stderr, \
                 "fib_heap.c: Error allocating memory\n"); \
             exit(1); \
-        }; })
+        }; }
 
-#define CHECK_INPUT(X, M) ({ \
+#define CHECK_INPUT(X, M) { \
         if(!(X)) {\
             fprintf(stderr, "fib_heap.c: %s\n", (M)); \
             exit(1); \
-        }; })
+        }; }
 
 static void
 exchange_right_node(struct heap_node *a, struct heap_node *b)
