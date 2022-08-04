@@ -1,13 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <malloc.h>
 #include "fibheap.h"
-
-/* intel assembly */
-#define LOG2(X) ({ \
-        unsigned int _i = 0; \
-        __asm__("bsr %1, %0" : "=r" (_i) : "r" ((X))); \
-        _i; })
 
 #define CHECK_MALLOC(X) ({ \
         if((X)==NULL) { \
@@ -43,7 +38,7 @@ fibheap_init(int max, int (*compr)(struct node_data *, struct node_data *))
     CHECK_MALLOC(H);
     CHECK_INPUT(max > 0, "fibheap_init: max has to be positive");
     H->the_one = NULL;
-    H->cons_array = (struct heap_node **)malloc((LOG2(max)+2) *  sizeof(struct heap_node *));
+    H->cons_array = (struct heap_node **)malloc((log2(max)+2) *  sizeof(struct heap_node *));
     CHECK_MALLOC(H->cons_array);
     H->node_num = 0;
     H->max = max;
@@ -119,7 +114,7 @@ fibheap_consolidate(struct heap *H)
         return;
     }
 
-    D = LOG2(H->node_num);
+    D = log2(H->node_num);
     for (i = 0; i <= D; i++) {
         H->cons_array[i] = NULL;
     }
