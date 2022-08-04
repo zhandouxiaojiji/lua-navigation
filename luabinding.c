@@ -88,8 +88,8 @@ static void push_path_to_fstack(lua_State* L,
         // 插入倒数第二个路点到终点间的拐点
         pos2xy(m, m->ipath[1], &ix, &iy);
         if (!check_line_walkable(m, ix + 0.5, iy + 0.5, fx2, fy2)) {
-            fx = fx2 < (float)ix + 0.5 ? floor(fx2) : ceil(fx2);
-            fy = fy2 < (float)iy + 0.5 ? floor(fy2) : ceil(fy2);
+            fx = fx2 > (float)ix + 0.5 ? floor(fx2) : ceil(fx2);
+            fy = fy2 > (float)iy + 0.5 ? floor(fy2) : ceil(fy2);
             push_fpos(L, fx, fy, num++);
         }
     }
