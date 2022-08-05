@@ -60,11 +60,13 @@ static unsigned char natural_dir(int pos, unsigned char cur_dir, Map *m) {
     if (cur_dir == NO_DIRECTION) {
         return FULL_DIRECTIONSET;
     }
+
     dir_add(&dir_set, cur_dir);
     if (dir_is_diagonal(cur_dir)) {
         dir_add(&dir_set, (cur_dir + 1) % 8);
         dir_add(&dir_set, (cur_dir + 7) % 8);
     }
+
     return dir_set;
 }
 
@@ -107,7 +109,6 @@ static unsigned char next_dir(unsigned char *dirs) {
 
 static void put_in_open_set(struct heap *open_set, Map *m, int pos,
             int len, struct node_data *node, unsigned char dir) {
-    // printf("put in open set:%d test:%d\n", pos, BITTEST(m->m, len + pos));
     if (!BITTEST(m->m, (BITSLOT(len) + 1) * CHAR_BIT + pos)) {
         int ng_value = node->g_value + dist(pos, node->pos, m->width);
         struct heap_node *p = m->open_set_map[pos];
@@ -124,6 +125,7 @@ static void put_in_open_set(struct heap *open_set, Map *m, int pos,
         }
     }
 }
+
 
 static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir,
             Map *m, struct node_data *node) {
@@ -181,6 +183,7 @@ int jps_find_path(Map *m) {
     while ((node = fibheap_pop(open_set))) {
         m->open_set_map[node->pos] = NULL;
         BITSET(m->m, (BITSLOT(len) + 1) * CHAR_BIT + node->pos);
+
         if (node->pos == m->end) {
             fibheap_destroy(open_set);
             return node->pos;

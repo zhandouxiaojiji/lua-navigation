@@ -2,10 +2,12 @@
 #include "smooth.h"
 #include "map.h"
 
-int check_line_walkable(Map* m, float x1, float y1, float x2, float y2) {
-    if (!map_walkable(m, xy2pos(m, (int)x1, (int)y1)) ||
-        !map_walkable(m, xy2pos(m, (int)x2, (int)y2))) {
-        return 0;
+int find_line_obstacle(Map* m, float x1, float y1, float x2, float y2) {
+    if (!map_walkable(m, xy2pos(m, (int)x1, (int)y1))) {
+        return xy2pos(m, (int)x1, (int)y1);
+    }
+    if(!map_walkable(m, xy2pos(m, (int)x2, (int)y2))) {
+        return xy2pos(m, (int)x2, (int)y2);
     }
     float k = (y2 - y1) / (x2 - x1);
 
@@ -15,24 +17,28 @@ int check_line_walkable(Map* m, float x1, float y1, float x2, float y2) {
     int max_y = y1 < y2 ? (int)y2 : (int)y1;
 
     int x, y;
-    // printf("check_line_walkable %d %d\n", min_x, max_x);
+    // printf("find_line_obstacle %d %d\n", min_x, max_x);
     for (x = min_x + 1; x <= max_x; ++x) {
         y = (int)(k * ((float)x - x1) + y1);
-        if (!map_walkable(m, xy2pos(m, x, y)) ||
-            !map_walkable(m, xy2pos(m, x - 1, y))) {
-            return 0;
+        if (!map_walkable(m, xy2pos(m, x, y))) {
+            return xy2pos(m, x, y);
+        }
+        if (!map_walkable(m, xy2pos(m, x - 1, y))) {
+            return xy2pos(m, x - 1, y);
         }
     }
 
     for (y = min_y + 1; y <= max_y; ++y) {
         x = (int)((y - y1) / k + x1);
-        if (!map_walkable(m, xy2pos(m, x, y)) ||
-            !map_walkable(m, xy2pos(m, x, y - 1))) {
-            return 0;
+        if (!map_walkable(m, xy2pos(m, x, y))) {
+            return xy2pos(m, x, y);
+        }
+        if (!map_walkable(m, xy2pos(m, x, y - 1))) {
+            return xy2pos(m, x, y - 1);
         }
     }
 
-    return 1;
+    return -1;
 }
 
 void smooth_path(Map* m) {
@@ -42,8 +48,8 @@ void smooth_path(Map* m) {
             pos2xy(m, m->ipath[i], &x1, &y1);
             pos2xy(m, m->ipath[j], &x2, &y2);
             // printf("check (%d)%d <=> (%d)%d\n", i, m->ipath[i], j, m->ipath[j]);
-            if (check_line_walkable(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
-                                    y2 + 0.5)) {
+            if (find_line_obstacle(m, x1 + 0.5, y1 + 0.5, x2 + 0.5,
+                                    y2 + 0.5) < 0) {
                 int offset = i - j - 1;
                 // printf("merge (%d) to (%d) offset:%d\n", i, j, offset);
                 for (int k = j + 1; k <= m->ipath_len - 1 - offset; k++) {
