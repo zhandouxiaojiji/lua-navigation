@@ -161,10 +161,10 @@ static int insert_mid_jump_point(Map* m, int cur, int father) {
 }
 
 static void flood_mark(Map* m,
-                       int* visited,
                        int pos,
                        int connected_num,
                        int limit) {
+    int* visited = m->visited;
     if (visited[pos]) {
         return;
     }
@@ -173,7 +173,7 @@ static void flood_mark(Map* m,
 #define FLOOD(n)                                               \
     do {                                                       \
         if (check_in_map_pos(n, limit) && !BITTEST(m->m, n)) { \
-            flood_mark(m, visited, n, connected_num, limit);   \
+            flood_mark(m, n, connected_num, limit);   \
         }                                                      \
     } while (0);
     FLOOD(pos - 1);
@@ -250,12 +250,12 @@ static int lnav_mark_connected(lua_State* L) {
     memset(m->connected, 0, len * sizeof(int));
     int i, connected_num = 0;
     int limit = m->width * m->height;
-    int visited[len];
+    int* visited = m->visited;
     memset(visited, 0, len * sizeof(int));
     for (i = 0; i < len; i++) {
         if (!visited[i] && !BITTEST(m->m, i)) {
             connected_num++;
-            flood_mark(m, visited, i, connected_num, limit);
+            flood_mark(m, i, connected_num, limit);
         }
     }
     return 0;
@@ -287,7 +287,7 @@ static int lnav_dump(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     printf("dump map state!!!!!!\n");
     int i, pos;
-    char s[m->width * 2 + 2];
+    char *s = (char*)malloc((m->width * 2 + 2) * sizeof(char));
     for (pos = 0, i = 0; i < m->width * m->height; i++) {
         if (i > 0 && i % m->width == 0) {
             s[pos - 1] = '\0';
@@ -316,6 +316,7 @@ static int lnav_dump(lua_State* L) {
     }
     s[pos - 1] = '\0';
     printf("%s\n", s);
+    free(s);
     return 0;
 }
 
