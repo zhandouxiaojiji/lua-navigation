@@ -66,26 +66,7 @@ inline int check_in_map_pos(int pos, int limit) {
     return pos >= 0 && pos < limit;
 }
 
-inline int map_walkable(Map* m, int pos) {
-    return check_in_map_pos(pos, m->width * m->height) && !BITTEST(m->m, pos);
-}
 
-inline int dist(int one, int two, int w) {
-    int ex = one % w, ey = one / w;
-    int px = two % w, py = two / w;
-    int dx = ex - px, dy = ey - py;
-    if (dx < 0) {
-        dx = -dx;
-    }
-    if (dy < 0) {
-        dy = -dy;
-    }
-    if (dx < dy) {
-        return dx * 7 + (dy - dx) * 5;
-    } else {
-        return dy * 7 + (dx - dy) * 5;
-    }
-}
 
 inline void pos2xy(Map* m, int pos, int* x, int* y) {
     *x = pos % m->width;
@@ -98,5 +79,6 @@ inline int xy2pos(Map* m, int x, int y) {
 
 void push_pos_to_ipath(Map* m, int pos);
 void init_map(Map* m, int width, int height, int map_men_len);
-
+int dist(int one, int two, int w);
+int map_walkable(Map* m, int pos);
 #endif /* __MAP__ */
