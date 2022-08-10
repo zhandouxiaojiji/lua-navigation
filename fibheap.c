@@ -4,6 +4,8 @@
 #include <malloc.h>
 #include "fibheap.h"
 
+
+
 #define CHECK_MALLOC(X) { \
         if((X)==NULL) { \
             fprintf(stderr, \
@@ -16,6 +18,11 @@
             fprintf(stderr, "fib_heap.c: %s\n", (M)); \
             exit(1); \
         }; }
+
+static double LOG2(double n)
+{
+    return log(n)/log(2);
+}
 
 static void
 exchange_right_node(struct heap_node *a, struct heap_node *b)
@@ -38,7 +45,7 @@ fibheap_init(int max, int (*compr)(struct node_data *, struct node_data *))
     CHECK_MALLOC(H);
     CHECK_INPUT(max > 0, "fibheap_init: max has to be positive");
     H->the_one = NULL;
-    H->cons_array = (struct heap_node **)malloc((log2(max)+2) *  sizeof(struct heap_node *));
+    H->cons_array = (struct heap_node **)malloc((LOG2(max)+2) *  sizeof(struct heap_node *));
     CHECK_MALLOC(H->cons_array);
     H->node_num = 0;
     H->max = max;
@@ -114,7 +121,7 @@ fibheap_consolidate(struct heap *H)
         return;
     }
 
-    D = log2(H->node_num);
+    D = LOG2(H->node_num);
     for (i = 0; i <= D; i++) {
         H->cons_array[i] = NULL;
     }

@@ -30,3 +30,24 @@ void init_map(Map* m, int width, int height, int map_men_len) {
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));
     memset(m->m, 0, map_men_len * sizeof(m->m[0]));
 }
+
+int dist(int one, int two, int w) {
+    int ex = one % w, ey = one / w;
+    int px = two % w, py = two / w;
+    int dx = ex - px, dy = ey - py;
+    if (dx < 0) {
+        dx = -dx;
+    }
+    if (dy < 0) {
+        dy = -dy;
+    }
+    if (dx < dy) {
+        return dx * 7 + (dy - dx) * 5;
+    } else {
+        return dy * 7 + (dx - dy) * 5;
+    }
+}
+
+inline int map_walkable(Map* m, int pos) {
+    return check_in_map_pos(pos, m->width * m->height) && !BITTEST(m->m, pos);
+}
