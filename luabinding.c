@@ -160,27 +160,36 @@ static int insert_mid_jump_point(Map* m, int cur, int father) {
     return 1;
 }
 
-static void flood_mark(Map* m,
-                       int pos,
-                       int connected_num,
-                       int limit) {
-    int* visited = m->visited;
+static void flood_mark(struct map *m, int pos, int connected_num, int limit) {
+    char *visited = m->visited;
     if (visited[pos]) {
         return;
     }
+    int *queue = m->queue;
+    memset(queue, 0, limit * sizeof(int));
+    int pop_i = 0, push_i = 0;
     visited[pos] = 1;
     m->connected[pos] = connected_num;
-#define FLOOD(n)                                               \
-    do {                                                       \
-        if (check_in_map_pos(n, limit) && !BITTEST(m->m, n)) { \
-            flood_mark(m, n, connected_num, limit);   \
-        }                                                      \
-    } while (0);
-    FLOOD(pos - 1);
-    FLOOD(pos + 1);
-    FLOOD(pos - m->width);
-    FLOOD(pos + m->width);
-#undef FLOOD
+    queue[push_i++] = pos;
+
+#define CHECK_POS(n) do { \
+    if (check_in_map_pos(n, limit) && !BITTEST(m->m, n)) { \
+        if (!visited[n]) { \
+            visited[n] = 1; \
+            m->connected[n] = connected_num; \
+            queue[push_i++] = n; \
+        } \
+    } \
+} while(0);
+    int cur;
+    while (pop_i < push_i) {
+        cur = queue[pop_i++];
+        CHECK_POS(cur - 1);
+        CHECK_POS(cur + 1);
+        CHECK_POS(cur - m->width);
+        CHECK_POS(cur + m->width);
+    }
+#undef CHECK_POS
 }
 
 static int lnav_add_block(lua_State* L) {
@@ -241,21 +250,17 @@ static int lnav_clear_allblock(lua_State* L) {
 }
 
 static int lnav_mark_connected(lua_State* L) {
-    Map* m = luaL_checkudata(L, 1, MT_NAME);
-    int len = m->width * m->height;
+    struct map *m = luaL_checkudata(L, 1, MT_NAME);
     if (!m->mark_connected) {
-        m->connected = (int*)malloc(len * sizeof(int));
         m->mark_connected = 1;
-    }
-    memset(m->connected, 0, len * sizeof(int));
-    int i, connected_num = 0;
-    int limit = m->width * m->height;
-    int* visited = m->visited;
-    memset(visited, 0, len * sizeof(int));
-    for (i = 0; i < len; i++) {
-        if (!visited[i] && !BITTEST(m->m, i)) {
-            connected_num++;
-            flood_mark(m, i, connected_num, limit);
+        int len = m->width * m->height;
+        memset(m->connected, 0, len * sizeof(int));
+        memset(m->visited, 0, len * sizeof(char));
+        int i, connected_num = 0;
+        for (i = 0; i < len; i++) {
+            if (!m->visited[i] && !BITTEST(m->m, i)) {
+                flood_mark(m, i, ++connected_num, len);
+            }
         }
     }
     return 0;
@@ -327,6 +332,8 @@ static int gc(lua_State* L) {
     if (m->mark_connected) {
         free(m->connected);
     }
+    free(m->queue);
+    free(m->visited);
     return 0;
 }
 

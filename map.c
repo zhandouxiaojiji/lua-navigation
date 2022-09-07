@@ -25,7 +25,9 @@ void init_map(Map* m, int width, int height, int map_men_len) {
     m->ipath_cap = 2;
     m->ipath_len = 0;
     m->ipath = (int*)malloc(m->ipath_cap * sizeof(int));
-    m->visited = (int*)malloc(len * sizeof(int));
+    m->visited = (char*)malloc(len * sizeof(char));
+    m->queue = (int *)malloc(len * sizeof(int));
+    m->connected = (int *)malloc(len * sizeof(int));
     m->open_set_map =
         (struct heap_node**)malloc(len * sizeof(struct heap_node*));
     memset(m->m, 0, map_men_len * sizeof(m->m[0]));

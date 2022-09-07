@@ -22,7 +22,8 @@ typedef struct map {
     int* comefrom;
     char mark_connected;
     int* connected;
-    int* visited;
+    int *queue;
+    char *visited;
 
     struct heap_node** open_set_map;
     /*
