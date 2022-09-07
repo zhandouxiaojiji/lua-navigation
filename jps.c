@@ -133,6 +133,7 @@ static int jump_prune(struct heap *open_set, int end, int pos, unsigned char dir
     int h = m->height;
     int len = w * h;
     int next_pos = get_next_pos(pos, dir, w, h);
+    // printf("next_pos:%d\n", next_pos);
     if (!map_walkable(m, next_pos)) {
         return 0;
     }
