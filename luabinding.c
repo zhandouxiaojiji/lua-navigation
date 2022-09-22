@@ -212,6 +212,14 @@ static int lnav_is_block(lua_State* L) {
     return 1;
 }
 
+static int lnav_get_connected_id(lua_State* L) {
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    lua_pushnumber(L, m->connected[m->width * y + x]);
+    return 1;
+}
+
 static int lnav_blockset(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     luaL_checktype(L, 2, LUA_TTABLE);
@@ -395,6 +403,9 @@ static int lnav_find_path(lua_State* L) {
         //            m->end / m->width);
         return 0;
     }
+    if (m->connected[m->start] != m->connected[m->end]) {
+        return 0;
+    }
     int start_pos = jps_find_path(m);
     if (start_pos >= 0) {
         form_ipath(m, start_pos);
@@ -454,6 +465,7 @@ static int lmetatable(lua_State* L) {
                         {"find_path_by_grid", lnav_find_path_by_grid},
                         {"find_path", lnav_find_path},
                         {"find_line_obstacle", lnav_check_line_walkable},
+                        {"get_connected_id", lnav_get_connected_id},
                         {"mark_connected", lnav_mark_connected},
                         {"dump_connected", lnav_dump_connected},
                         {"dump", lnav_dump},
