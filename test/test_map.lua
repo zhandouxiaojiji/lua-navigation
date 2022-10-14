@@ -1,4 +1,4 @@
-local navigation = require "navigation"
+local navigation = require "navigation.c"
 local map = require "test.world_map"
 
 local obstacle_list = {}

@@ -510,7 +510,7 @@ static int lnewmap(lua_State* L) {
     return 1;
 }
 
-LUAMOD_API int luaopen_navigation(lua_State* L) {
+LUAMOD_API int luaopen_navigation_c(lua_State* L) {
     luaL_checkversion(L);
     luaL_Reg l[] = {
         {"new", lnewmap},

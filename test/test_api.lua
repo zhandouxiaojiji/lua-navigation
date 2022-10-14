@@ -1,4 +1,4 @@
-local navigation = require "navigation"
+local navigation = require "navigation.c"
 local M = {}
 
 local nav, x1, y1, x2, y2

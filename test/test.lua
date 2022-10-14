@@ -1,4 +1,4 @@
-local navigation = require "navigation"
+local navigation = require "navigation.c"
 local nav = navigation.new {
     w = 20,
     h = 20,
