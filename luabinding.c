@@ -367,7 +367,7 @@ static int lnav_check_line_walkable(lua_State* L) {
     return 1;
 }
 
-static int lnav_find_path(lua_State* L) {
+static int qlnav_find_path(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     float fx1 = luaL_checknumber(L, 2);
     float fy1 = luaL_checknumber(L, 3);

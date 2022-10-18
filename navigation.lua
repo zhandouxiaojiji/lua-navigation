@@ -1,6 +1,7 @@
 local navigation_c = require "navigation.c"
 
 local mfloor = math.floor
+local sqrt = math.sqrt
 
 local mt = {}
 mt.__index = mt
@@ -18,6 +19,19 @@ local function cell2pos(self, cell)
     }
 end
 
+local function create_node(cell)
+    return {
+        cell = cell,
+        connected = {} -- {node -> length}
+    }
+end
+
+local function create_graph()
+    return {
+        nodes = {},
+    }
+end
+
 local function create_area(area_id)
     return {
         area_id = area_id,
@@ -26,16 +40,39 @@ local function create_area(area_id)
     }
 end
 
+local function calc_path_length(path)
+    local len = 0
+    for i = 1, #path - 1 do
+        local pos1 = path[i]
+        local pos2 = path[i+1]
+        len = len + sqrt((pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2)
+    end
+    return len
+end
+
 local function area_add_joint(self, area, pos)
     local cell = pos2cell(self, pos)
     area.joints[cell] = true
+    local nodes = self.graph.nodes
+    for v in pairs(area.joints) do
+        if not nodes[v] then
+            nodes[v] = create_node(v)
+        end
+    end
     for from in pairs(area.joints) do
         for to in pairs(area.joints) do
             if not area.path[from][to] then
-                area.path[from][to] = self:find_path(cell2pos(from), cell2pos(to))
+                local path = self:find_path(cell2pos(from), cell2pos(to))
+                area.path[from][to] = path
+                local from_node = nodes[from]
+                local to_node = nodes[to]
+                local length = calc_path_length(path)
+                from_node.connected[to_node] = length
+                to_node.connected[from_node] = length
             end
         end
     end
+
 end
 
 function mt:init(w, h, obstacles)
@@ -48,7 +85,8 @@ function mt:init(w, h, obstacles)
     }
     self.portals = {}
     self.areas = {}
-    self.graph = {}
+
+    self.graph = create_graph()
 end
 
 function mt:set_obstacle(pos)

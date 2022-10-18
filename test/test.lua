@@ -1,6 +1,6 @@
 local navigation = require "navigation"
 local nav = navigation.new (20, 20, {
-    {1, 0},
+    -- {1, 0},
 })
 
 local function test_find_path(pos1, pos2)
@@ -8,7 +8,7 @@ local function test_find_path(pos1, pos2)
     print(string.format("find path (%s, %s) => (%s, %s)", pos1.x, pos1.y, pos2.x, pos2.y))
     local ret = nav:find_path(pos1, pos2)
     for _, v in ipairs(ret) do
-        print(v[1], v[2])
+        print(v.x, v.y)
     end
     print("========================")
 end
