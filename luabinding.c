@@ -173,7 +173,7 @@ static void flood_mark(struct map *m, int pos, int connected_num, int limit) {
     queue[push_i++] = pos;
 
 #define CHECK_POS(n) do { \
-    if (check_in_map_pos(n, limit) && !BITTEST(m->m, n)) { \
+    if (!BITTEST(m->m, n)) { \
         if (!visited[n]) { \
             visited[n] = 1; \
             m->connected[n] = connected_num; \
@@ -181,13 +181,22 @@ static void flood_mark(struct map *m, int pos, int connected_num, int limit) {
         } \
     } \
 } while(0);
-    int cur;
+    int cur, left;
     while (pop_i < push_i) {
         cur = queue[pop_i++];
-        CHECK_POS(cur - 1);
-        CHECK_POS(cur + 1);
-        CHECK_POS(cur - m->width);
-        CHECK_POS(cur + m->width);
+        left = cur % m->width;
+        if (left != 0) {
+            CHECK_POS(cur - 1);
+        }
+        if (left != m->width - 1) {
+            CHECK_POS(cur + 1);
+        }
+        if (cur >= m->width) {
+            CHECK_POS(cur - m->width);
+        }
+        if (cur < limit - m->width) {
+            CHECK_POS(cur + m->width);
+        }
     }
 #undef CHECK_POS
 }
@@ -258,19 +267,19 @@ static int lnav_clear_allblock(lua_State* L) {
 }
 
 static int lnav_mark_connected(lua_State* L) {
-    struct map *m = luaL_checkudata(L, 1, MT_NAME);
-    if (!m->mark_connected) {
-        m->mark_connected = 1;
-        int len = m->width * m->height;
-        memset(m->connected, 0, len * sizeof(int));
-        memset(m->visited, 0, len * sizeof(char));
-        int i, connected_num = 0;
-        for (i = 0; i < len; i++) {
-            if (!m->visited[i] && !BITTEST(m->m, i)) {
-                flood_mark(m, i, ++connected_num, len);
-            }
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
+
+    m->mark_connected = 1;
+    int len = m->width * m->height;
+    memset(m->connected, 0, len * sizeof(int));
+    memset(m->visited, 0, len * sizeof(char));
+    int i, connected_num = 0;
+    for (i = 0; i < len; i++) {
+        if (!m->visited[i] && !BITTEST(m->m, i)) {
+            flood_mark(m, i, ++connected_num, len);
         }
     }
+
     return 0;
 }
 

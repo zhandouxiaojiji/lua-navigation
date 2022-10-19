@@ -15,8 +15,12 @@ for y = 0, h - 1 do
 end
 
 nav:update_areas()
+nav.core:dump()
+nav.core:dump_connected()
 
 nav:add_portal({x = 5, y = 3})
+-- nav:add_portal({x = 10, y = 5})
+
 
 local function test_find_path(pos1, pos2)
     print("========================")

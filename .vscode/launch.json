@@ -11,6 +11,18 @@
             "program": "lua",
             "cwd": "${workspaceRoot}",
             "programArgs": "test/test.lua"
+        },
+        {
+            "name": "Launch(lua)",
+            "type": "lua",
+            "request": "launch",
+            "stopOnEntry": false,
+            "program": "${workspaceFolder}/test/test.lua",
+            "cwd": "${workspaceFolder}",
+            "path": "${workspaceFolder}/?.lua",
+            "cpath": "${workspaceFolder}/?.dll",
+            "arg": [],
+            "consoleCoding": "utf8"
         }
     ]
 }

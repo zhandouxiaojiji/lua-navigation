@@ -19,10 +19,11 @@ local function cell2pos(self, cell)
     }
 end
 
-local function create_node(cell)
+local function create_node(cell, pos)
     return {
         cell = cell,
-        connected = {} -- {node -> length}
+        pos = pos,
+        connected = {} -- {node -> {path, length}}
     }
 end
 
@@ -50,32 +51,46 @@ local function calc_path_length(path)
     return len
 end
 
+local function reverse_path(path)
+    local new = {}
+    for i = #path, 1, -1 do
+        new[#new+1] = path[i]
+    end
+    return new
+end
+
+local function connect_nodes(self, node1, node2)
+    local path = self:find_path(node1.pos, node2.pos)
+    local length = calc_path_length(path)
+    node1.connected[node2] = {path, length}
+    node2.connected[node1] = {reverse_path(path), length}
+end
+
+local function get_node(self, cell)
+    return self.graph.nodes[cell]
+end
+
 local function area_add_joint(self, area, pos)
     local cell = pos2cell(self, pos)
     area.joints[cell] = true
     local nodes = self.graph.nodes
-    for v in pairs(area.joints) do
-        if not nodes[v] then
-            nodes[v] = create_node(v)
-        end
+    local node = nodes[cell]
+    if not node then
+        node = create_node(cell)
+        nodes[cell] = node
     end
     for from in pairs(area.joints) do
         for to in pairs(area.joints) do
-            if not area.paths[from] then
-                area.paths[from] = {}
-            end
-            if not area.paths[from][to] then
-                local path = self:find_path(cell2pos(self, from), cell2pos(self, to))
-                area.paths[from][to] = path
-                local from_node = nodes[from]
-                local to_node = nodes[to]
-                local length = calc_path_length(path)
-                from_node.connected[to_node] = length
-                to_node.connected[from_node] = length
+            if from ~= to then
+                local node1 = get_node(self, from)
+                local node2 = get_node(self, to)
+                if not node1.connected[node2] then
+                    connect_nodes(self, node1, node2)
+                end
             end
         end
     end
-
+    return node
 end
 
 function mt:init(w, h, obstacles)
@@ -145,10 +160,16 @@ function mt:add_portal(center_pos, camp, max_size)
             break
         end
     end
+    local last_node
     for _, pos in pairs(portal.joints) do
         local area_id = self:get_area_id_by_pos(pos)
         local area = self:get_area(area_id)
-        area_add_joint(self, area, pos)
+        local node = area_add_joint(self, area, pos)
+        if last_node then
+            connect_nodes(self, node, last_node)
+        else
+            last_node = node
+        end
     end
 end
 
