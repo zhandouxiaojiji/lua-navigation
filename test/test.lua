@@ -1,7 +1,22 @@
 local navigation = require "navigation"
-local nav = navigation.new (20, 20, {
+local w = 20
+local h = 20
+local nav = navigation.new (w, h, {
     -- {1, 0},
 })
+
+for x = 0, w - 1 do
+    nav:set_obstacle {x = x, y = 5}
+    nav:set_obstacle {x = x, y = 15}
+end
+for y = 0, h - 1 do
+    nav:set_obstacle {x = 5, y = y}
+    nav:set_obstacle {x = 15, y = y}
+end
+
+nav:update_areas()
+
+nav:add_portal({x = 5, y = 3})
 
 local function test_find_path(pos1, pos2)
     print("========================")
@@ -16,3 +31,4 @@ end
 test_find_path({x = 1, y = 1}, {x = 0, y = 0})
 test_find_path({x = 0, y = 0}, {x = 1, y = 1})
 test_find_path({x = 1, y = 1}, {x = 0, y = 0})
+test_find_path({x = 1, y = 1}, {x = 6, y = 1})

@@ -61,9 +61,12 @@ local function area_add_joint(self, area, pos)
     end
     for from in pairs(area.joints) do
         for to in pairs(area.joints) do
-            if not area.path[from][to] then
-                local path = self:find_path(cell2pos(from), cell2pos(to))
-                area.path[from][to] = path
+            if not area.paths[from] then
+                area.paths[from] = {}
+            end
+            if not area.paths[from][to] then
+                local path = self:find_path(cell2pos(self, from), cell2pos(self, to))
+                area.paths[from][to] = path
                 local from_node = nodes[from]
                 local to_node = nodes[to]
                 local length = calc_path_length(path)
@@ -87,6 +90,11 @@ function mt:init(w, h, obstacles)
     self.areas = {}
 
     self.graph = create_graph()
+    self:update_areas()
+end
+
+function mt:update_areas()
+    self.core:mark_connected()
 end
 
 function mt:set_obstacle(pos)
