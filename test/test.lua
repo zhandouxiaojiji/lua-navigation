@@ -32,7 +32,7 @@ local function test_find_path(pos1, pos2)
     print("========================")
 end
 
-test_find_path({x = 1, y = 1}, {x = 0, y = 0})
-test_find_path({x = 0, y = 0}, {x = 1, y = 1})
-test_find_path({x = 1, y = 1}, {x = 0, y = 0})
+-- test_find_path({x = 1, y = 1}, {x = 0, y = 0})
+-- test_find_path({x = 0, y = 0}, {x = 1, y = 1})
+-- test_find_path({x = 1, y = 1}, {x = 0, y = 0})
 test_find_path({x = 1, y = 1}, {x = 6, y = 1})

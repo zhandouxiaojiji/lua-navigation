@@ -76,19 +76,25 @@ local function connect_nodes(self, node1, node2)
     node2.connected[node1] = {reverse_path(path), length}
 end
 
+local function connect_nodes_cross_area(node1, node2)
+    local distance = calc_distance(node1.pos, node2.pos)
+    node1.connected[node2] = {{node1.pos, node2.pos}, distance}
+    node2.connected[node1] = {{node2.pos, node1.pos}, distance}
+end
+
 local function get_node(self, cell)
     return self.graph.nodes[cell]
 end
 
 local function area_add_joint(self, area, pos)
     local cell = pos2cell(self, pos)
-    area.joints[cell] = true
     local nodes = self.graph.nodes
     local node = nodes[cell]
     if not node then
         node = create_node(cell, pos)
         nodes[cell] = node
     end
+    area.joints[cell] = node
     for from in pairs(area.joints) do
         for to in pairs(area.joints) do
             if from ~= to then
@@ -176,7 +182,7 @@ function mt:add_portal(center_pos, camp, max_size)
         local area = self:get_area(area_id)
         local node = area_add_joint(self, area, pos)
         if last_node then
-            connect_nodes(self, node, last_node)
+            connect_nodes_cross_area(node, last_node)
         else
             last_node = node
         end
@@ -192,8 +198,8 @@ end
 local function connect_to_area(area, node)
     for _, joint in pairs(area.joints) do
         local distance = calc_distance(node.pos, joint.pos)
-        node.connected[joint] = {nil, distance}
-        joint.connected[node] = {nil, distance}
+        node.connected[joint] = {{node.pos, joint.pos}, distance}
+        joint.connected[node] = {{joint.pos, node.pos}, distance}
     end
 end
 
@@ -201,6 +207,12 @@ local function disconnect_to_area(area, node)
     for _, joint in pairs(area.joints) do
         node.connected[joint] = nil
         joint.connected[node] = nil
+    end
+end
+
+local function merge_path(path1, path2)
+    for _, v in ipairs(path2) do
+        path1[#path1+1] = v
     end
 end
 
@@ -220,8 +232,13 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
     connect_to_area(src_area, src_node)
     connect_to_area(dst_area, dst_node)
 
-    xpcall(function ()
+    local path = {}
+
+    local ok, errmsg = xpcall(function ()
         local function add_to_open_set(node, prev)
+            if graph.open_set[node] or graph.closed_set[node] then
+                return
+            end
             graph.open_set[node] = true
             node.prev = prev
             if prev then
@@ -246,30 +263,51 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
             end
             graph.open_set[cur_node] = nil
             graph.closed_set[cur_node] = true
-            for _, node in pairs(cur_node.connected) do
-                if not graph.closed_set[node] and not graph.open_set then
+            for node in pairs(cur_node.connected) do
+                if not graph.closed_set[node] and not graph.open_set[node] then
                     add_to_open_set(node, cur_node)
                 end
             end
         end
+
+        if not dst_node.prev then
+            return {}
+        end
+        local node_path = {}
+        local node = dst_node
+        while true do
+            node_path[#node_path+1] = node
+            if node == src_node then
+                break
+            end
+            node = node.prev
+        end
+
+        node_path = reverse_path(node_path)
+        local first = node_path[1]
+        local second = node_path[2]
+        first.connected[second][1] = self:find_path(first.pos, second.pos)
+        local last = node_path[#node_path]
+        local last_second = node_path[#node_path-1]
+        last_second.connected[last][1] = self:find_path(last_second.pos, last.pos)
+
+        for i = 1, #node_path - 1 do
+            local cur_node = node_path[i]
+            local next_node = node_path[i+1]
+            local part = cur_node.connected[next_node][1]
+            part[#part] = nil
+            merge_path(path, part)
+        end
+        path[#path+1] = last.pos
     end, debug.traceback)
+    if not ok then
+        print(errmsg)
+    end
 
     disconnect_to_area(src_area, src_node)
     disconnect_to_area(dst_area, dst_node)
 
-    if not dst_node.prev then
-        return {}
-    end
-    local node_path = {}
-    local node = dst_node
-    while true do
-        node_path[#node_path+1] = node
-        if node == src_node then
-            break
-        end
-    end
-
-    return reverse_path(path)
+    return path
 end
 
 function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
@@ -285,7 +323,14 @@ function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
     local to_area_id = self:get_area_id_by_pos(to_pos)
     local ok, errmsg = xpcall(function()
         if from_area_id == to_area_id then
-            path = self.core:find_path(from_pos.x, from_pos.y, to_pos.x, to_pos.y) or {}
+            local cpath = self.core:find_path(from_pos.x, from_pos.y, to_pos.x, to_pos.y) or {}
+            path = {}
+            for _, pos in ipairs(cpath) do
+                path[#path+1] = {
+                    x = pos[1],
+                    y = pos[2]
+                }
+            end
         else
             path = find_path_cross_area(self, from_area_id, from_pos, to_area_id, to_pos)
         end
@@ -300,14 +345,7 @@ function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
     if #path < 2 then
         print(string.format("cannot find path (%s, %s) =>(%s, %s)", from_pos.x, from_pos.y, to_pos.x, to_pos.y))
     end
-    local new = {}
-    for _, pos in ipairs(path) do
-        new[#new+1] = {
-            x = pos[1],
-            y = pos[2]
-        }
-    end
-    return new
+    return path
 end
 
 local M = {}
