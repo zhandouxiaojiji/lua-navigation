@@ -23,6 +23,10 @@ local function create_node(cell, pos)
     return {
         cell = cell,
         pos = pos,
+        g = 0,
+        h = 0,
+        f = 0,
+        prev = nil,
         connected = {} -- {node -> {path, length}}
     }
 end
@@ -30,6 +34,8 @@ end
 local function create_graph()
     return {
         nodes = {},
+        open_set = {},
+        closed_set = {},
     }
 end
 
@@ -41,12 +47,16 @@ local function create_area(area_id)
     }
 end
 
+local function calc_distance(pos1, pos2)
+    return sqrt((pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2)
+end
+
 local function calc_path_length(path)
     local len = 0
     for i = 1, #path - 1 do
         local pos1 = path[i]
         local pos2 = path[i+1]
-        len = len + sqrt((pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2)
+        len = len + calc_distance(pos1, pos2)
     end
     return len
 end
@@ -76,7 +86,7 @@ local function area_add_joint(self, area, pos)
     local nodes = self.graph.nodes
     local node = nodes[cell]
     if not node then
-        node = create_node(cell)
+        node = create_node(cell, pos)
         nodes[cell] = node
     end
     for from in pairs(area.joints) do
@@ -179,26 +189,116 @@ function mt:del_portal(pos)
     -- TODO
 end
 
-function mt:find_path(from, to, check_portal_func, ignore_list)
+local function connect_to_area(area, node)
+    for _, joint in pairs(area.joints) do
+        local distance = calc_distance(node.pos, joint.pos)
+        node.connected[joint] = {nil, distance}
+        joint.connected[node] = {nil, distance}
+    end
+end
+
+local function disconnect_to_area(area, node)
+    for _, joint in pairs(area.joints) do
+        node.connected[joint] = nil
+        joint.connected[node] = nil
+    end
+end
+
+local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst_pos)
+    print("find_path_cross_area")
+    local graph = self.graph
+    graph.open_set = {}
+    graph.closed_set = {}
+
+    local src_cell = pos2cell(self, src_pos)
+    local dst_cell = pos2cell(self, dst_pos)
+    local src_node = create_node(src_cell, src_pos)
+    local dst_node = create_node(dst_cell, dst_pos)
+    local src_area = self:get_area(src_area_id)
+    local dst_area = self:get_area(dst_area_id)
+
+    connect_to_area(src_area, src_node)
+    connect_to_area(dst_area, dst_node)
+
+    xpcall(function ()
+        local function add_to_open_set(node, prev)
+            graph.open_set[node] = true
+            node.prev = prev
+            if prev then
+                node.g = prev.g + calc_distance(node.pos, prev.pos)
+            else
+                node.g = 0
+            end
+            node.h = calc_distance(node.pos, dst_pos)
+            node.f = node.g + node.h
+        end
+        add_to_open_set(src_node)
+        while next(graph.open_set) do
+            local cur_node
+            for node in pairs(graph.open_set) do
+                if not cur_node then
+                    cur_node = node
+                else
+                    if node.f < cur_node then
+                        cur_node = node
+                    end
+                end
+            end
+            graph.open_set[cur_node] = nil
+            graph.closed_set[cur_node] = true
+            for _, node in pairs(cur_node.connected) do
+                if not graph.closed_set[node] and not graph.open_set then
+                    add_to_open_set(node, cur_node)
+                end
+            end
+        end
+    end, debug.traceback)
+
+    disconnect_to_area(src_area, src_node)
+    disconnect_to_area(dst_area, dst_node)
+
+    if not dst_node.prev then
+        return {}
+    end
+    local node_path = {}
+    local node = dst_node
+    while true do
+        node_path[#node_path+1] = node
+        if node == src_node then
+            break
+        end
+    end
+
+    return reverse_path(path)
+end
+
+function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
     ignore_list = ignore_list or {}
-    if self.core:is_block(mfloor(from.x), mfloor(from.y)) then
-        ignore_list[#ignore_list+1] = from -- 自动忽略起点
+    if self.core:is_block(mfloor(from_pos.x), mfloor(from_pos.y)) then
+        ignore_list[#ignore_list+1] = from_pos -- 自动忽略起点
     end
     for _, pos in pairs(ignore_list) do
         self.core:clear_block(mfloor(pos.x), mfloor(pos.y))
     end
     local path
+    local from_area_id = self:get_area_id_by_pos(from_pos)
+    local to_area_id = self:get_area_id_by_pos(to_pos)
     local ok, errmsg = xpcall(function()
-        path = self.core:find_path(from.x, from.y, to.x, to.y) or {}
+        if from_area_id == to_area_id then
+            path = self.core:find_path(from_pos.x, from_pos.y, to_pos.x, to_pos.y) or {}
+        else
+            path = find_path_cross_area(self, from_area_id, from_pos, to_area_id, to_pos)
+        end
     end, debug.traceback)
     if not ok then
         print(errmsg)
     end
+
     for _, pos in pairs(ignore_list) do
         self.core:add_block(mfloor(pos.x), mfloor(pos.y))
     end
     if #path < 2 then
-        print(string.format("cannot find path (%s, %s) =>(%s, %s)", from.x, from.y, to.x, to.y))
+        print(string.format("cannot find path (%s, %s) =>(%s, %s)", from_pos.x, from_pos.y, to_pos.x, to_pos.y))
     end
     local new = {}
     for _, pos in ipairs(path) do
