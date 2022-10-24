@@ -256,7 +256,7 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
                 if not cur_node then
                     cur_node = node
                 else
-                    if node.f < cur_node then
+                    if node.f < cur_node.f then
                         cur_node = node
                     end
                 end
