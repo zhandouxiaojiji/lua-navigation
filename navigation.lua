@@ -131,9 +131,11 @@ end
 function mt:set_obstacle(pos)
     self.core:add_block(mfloor(pos.x), mfloor(pos.y))
 end
-
 function mt:unset_obstacle(pos)
     self.core:clear_block(mfloor(pos.x), mfloor(pos.y))
+end
+function mt:is_obstacle(pos)
+    return self.core:is_block(mfloor(pos.x), mfloor(pos.y))
 end
 
 function mt:get_area_id_by_pos(pos)
