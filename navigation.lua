@@ -52,7 +52,7 @@ local function create_area(area_id)
     ---@class LuaNavigationArea
     local area = {
         area_id = area_id,
-        paths = {}, -- {[from][to] -> path}
+        paths = {},  -- {[from][to] -> path}
         joints = {}, -- {cell -> true}
     }
     return area
@@ -71,7 +71,7 @@ local function calc_path_length(path)
     local len = 0
     for i = 1, #path - 1 do
         local pos1 = path[i]
-        local pos2 = path[i+1]
+        local pos2 = path[i + 1]
         len = len + calc_distance(pos1, pos2)
     end
     return len
@@ -82,7 +82,7 @@ end
 local function reverse_path(path)
     local new = {}
     for i = #path, 1, -1 do
-        new[#new+1] = path[i]
+        new[#new + 1] = path[i]
     end
     return new
 end
@@ -93,8 +93,8 @@ end
 local function connect_nodes(self, node1, node2)
     local path = self:find_path(node1.pos, node2.pos)
     local length = calc_path_length(path)
-    node1.connected[node2] = {path, length}
-    node2.connected[node1] = {reverse_path(path), length}
+    node1.connected[node2] = { path, length }
+    node2.connected[node1] = { reverse_path(path), length }
 end
 
 
@@ -110,8 +110,8 @@ end
 ---@param node2 LuaNavigationNode
 local function connect_nodes_cross_area(node1, node2)
     local distance = calc_distance(node1.pos, node2.pos)
-    node1.connected[node2] = {{node1.pos, node2.pos}, distance}
-    node2.connected[node1] = {{node2.pos, node1.pos}, distance}
+    node1.connected[node2] = { { node1.pos, node2.pos }, distance }
+    node2.connected[node1] = { { node2.pos, node1.pos }, distance }
 end
 
 ---@param self LuaNavigation
@@ -183,9 +183,11 @@ end
 function mt:set_obstacle(pos)
     self.core:add_block(mfloor(pos.x), mfloor(pos.y))
 end
+
 function mt:unset_obstacle(pos)
     self.core:clear_block(mfloor(pos.x), mfloor(pos.y))
 end
+
 function mt:is_obstacle(pos)
     return self.core:is_block(mfloor(pos.x), mfloor(pos.y))
 end
@@ -202,10 +204,24 @@ function mt:get_area(area_id)
     end
     return area
 end
+
+local function find_walkable_area_around(self, center_pos, max_size)
+    local cx = mfloor(center_pos.x)
+    local cy = mfloor(center_pos.y)
+    for i = 0, max_size do
+        for j = 0, max_size do
+            if not self.core:is_block(cx + i, cy + j) then
+                return self:get_area_id_by_pos(center_pos)
+            end
+        end
+    end
+end
+
 ---@param center_pos LuaNavigationPosition
 ---@param camp? number
 ---@param max_size? number
-function mt:add_portal(center_pos, camp, max_size)
+---@param joints? LuaNavigationPosition[]
+function mt:add_portal(center_pos, camp, max_size, joints)
     local cell = pos2cell(self, center_pos)
     ---@class LuaNavigationPortal
     local portal = {
@@ -217,20 +233,41 @@ function mt:add_portal(center_pos, camp, max_size)
     local cx = mfloor(center_pos.x)
     local cy = mfloor(center_pos.y)
     max_size = max_size or 10
-    for i = 1, max_size // 2 do
-        if not self.core:is_block(cx - i, cy) and not self.core:is_block(cx + i, cy) then
-            portal.joints = {
-                {x = cx - i + 0.5, y = cy + 0.5},
-                {x = cx + i + 0.5, y = cy + 0.5},
-            }
-            break
+    if joints then
+        -- 从关节点向中心点反方向寻找空白格
+        for _, pos in pairs(joints) do
+            local direction_x = pos.x - center_pos.x
+            local direction_y = pos.y - center_pos.y
+            local step_x = direction_x ~= 0 and direction_x / math.abs(direction_x) or 0
+            local step_y = direction_y ~= 0 and direction_y / math.abs(direction_y) or 0
+            local current_x = pos.x
+            local current_y = pos.y
+
+            while math.abs(current_x - center_pos.x) <= max_size and math.abs(current_y - center_pos.y) <= max_size do
+                if not self.core:is_block(mfloor(current_x), mfloor(current_y)) then
+                    table.insert(portal.joints, { x = current_x + 0.5, y = current_y + 0.5 })
+                    break
+                end
+                current_x = current_x + step_x
+                current_y = current_y + step_y
+            end
         end
-        if not self.core:is_block(cx, cy - i) and not self.core:is_block(cx, cy + i) then
-            portal.joints = {
-                {x = cx + 0.5, y = cy - i + 0.5},
-                {x = cx + 0.5, y = cy + i + 0.5},
-            }
-            break
+    else
+        for i = 1, max_size // 2 do
+            if not self.core:is_block(cx - i, cy) and not self.core:is_block(cx + i, cy) then
+                portal.joints = {
+                    { x = cx - i + 0.5, y = cy + 0.5 },
+                    { x = cx + i + 0.5, y = cy + 0.5 },
+                }
+                break
+            end
+            if not self.core:is_block(cx, cy - i) and not self.core:is_block(cx, cy + i) then
+                portal.joints = {
+                    { x = cx + 0.5, y = cy - i + 0.5 },
+                    { x = cx + 0.5, y = cy + i + 0.5 },
+                }
+                break
+            end
         end
     end
     local last_node
@@ -264,8 +301,8 @@ end
 local function connect_to_area(area, node)
     for _, joint in pairs(area.joints) do
         local distance = calc_distance(node.pos, joint.pos)
-        node.connected[joint] = {{node.pos, joint.pos}, distance}
-        joint.connected[node] = {{joint.pos, node.pos}, distance}
+        node.connected[joint] = { { node.pos, joint.pos }, distance }
+        joint.connected[node] = { { joint.pos, node.pos }, distance }
     end
 end
 
@@ -278,7 +315,7 @@ end
 
 local function merge_path(path1, path2)
     for _, v in ipairs(path2) do
-        path1[#path1+1] = v
+        path1[#path1 + 1] = v
     end
 end
 
@@ -300,7 +337,7 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
 
     local path = {}
 
-    local ok, errmsg = xpcall(function ()
+    local ok, errmsg = xpcall(function()
         local function add_to_open_set(node, prev)
             if graph.open_set[node] or graph.closed_set[node] then
                 return
@@ -342,7 +379,7 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
         local node_path = {}
         local node = dst_node
         while true do
-            node_path[#node_path+1] = node
+            node_path[#node_path + 1] = node
             if node == src_node then
                 break
             end
@@ -354,17 +391,17 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
         local second = node_path[2]
         first.connected[second][1] = self:find_path(first.pos, second.pos)
         local last = node_path[#node_path]
-        local last_second = node_path[#node_path-1]
+        local last_second = node_path[#node_path - 1]
         last_second.connected[last][1] = self:find_path(last_second.pos, last.pos)
 
         for i = 1, #node_path - 1 do
             local cur_node = node_path[i]
-            local next_node = node_path[i+1]
+            local next_node = node_path[i + 1]
             local part = cur_node.connected[next_node][1]
             part[#part] = nil
             merge_path(path, part)
         end
-        path[#path+1] = last.pos
+        path[#path + 1] = last.pos
     end, debug.traceback)
     if not ok then
         print(errmsg)
@@ -379,7 +416,7 @@ end
 function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
     ignore_list = ignore_list or {}
     if self.core:is_block(mfloor(from_pos.x), mfloor(from_pos.y)) then
-        ignore_list[#ignore_list+1] = from_pos -- 自动忽略起点
+        ignore_list[#ignore_list + 1] = from_pos -- 自动忽略起点
     end
     for _, pos in pairs(ignore_list) do
         self.core:clear_block(mfloor(pos.x), mfloor(pos.y))
@@ -392,7 +429,7 @@ function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
             local cpath = self.core:find_path(from_pos.x, from_pos.y, to_pos.x, to_pos.y) or {}
             path = {}
             for _, pos in ipairs(cpath) do
-                path[#path+1] = {
+                path[#path + 1] = {
                     x = pos[1],
                     y = pos[2]
                 }
