@@ -3,6 +3,11 @@ local navigation_c = require "navigation.c"
 local mfloor = math.floor
 local sqrt = math.sqrt
 
+---@class LuaNavigationPosition
+---@field x number
+---@field y number
+
+---@class LuaNavigation
 local mt = {}
 mt.__index = mt
 
@@ -20,7 +25,8 @@ local function cell2pos(self, cell)
 end
 
 local function create_node(cell, pos)
-    return {
+    ---@class LuaNavigationNode
+    local node = {
         cell = cell,
         pos = pos,
         g = 0,
@@ -29,28 +35,38 @@ local function create_node(cell, pos)
         prev = nil,
         connected = {} -- {node -> {path, length}}
     }
+    return node
 end
 
 local function create_graph()
-    return {
+    ---@class LuaNavigationGraph
+    local graph = {
         nodes = {},
         open_set = {},
         closed_set = {},
     }
+    return graph
 end
 
 local function create_area(area_id)
-    return {
+    ---@class LuaNavigationArea
+    local area = {
         area_id = area_id,
         paths = {}, -- {[from][to] -> path}
         joints = {}, -- {cell -> true}
     }
+    return area
 end
 
+---@param pos1 LuaNavigationPosition
+---@param pos2 LuaNavigationPosition
+---@return number
 local function calc_distance(pos1, pos2)
     return sqrt((pos1.x - pos2.x) ^ 2 + (pos1.y - pos2.y) ^ 2)
 end
 
+---@param path LuaNavigationPosition[]
+---@return number
 local function calc_path_length(path)
     local len = 0
     for i = 1, #path - 1 do
@@ -61,6 +77,8 @@ local function calc_path_length(path)
     return len
 end
 
+---@param path LuaNavigationPosition[]
+---@return LuaNavigationPosition[]
 local function reverse_path(path)
     local new = {}
     for i = #path, 1, -1 do
@@ -69,6 +87,9 @@ local function reverse_path(path)
     return new
 end
 
+---@param self LuaNavigation
+---@param node1 LuaNavigationNode
+---@param node2 LuaNavigationNode
 local function connect_nodes(self, node1, node2)
     local path = self:find_path(node1.pos, node2.pos)
     local length = calc_path_length(path)
@@ -76,16 +97,33 @@ local function connect_nodes(self, node1, node2)
     node2.connected[node1] = {reverse_path(path), length}
 end
 
+
+---@param self LuaNavigation
+---@param node1 LuaNavigationNode
+---@param node2 LuaNavigationNode
+local function disconnect_nodes(self, node1, node2)
+    node1.connected[node2] = nil
+    node2.connected[node1] = nil
+end
+
+---@param node1 LuaNavigationNode
+---@param node2 LuaNavigationNode
 local function connect_nodes_cross_area(node1, node2)
     local distance = calc_distance(node1.pos, node2.pos)
     node1.connected[node2] = {{node1.pos, node2.pos}, distance}
     node2.connected[node1] = {{node2.pos, node1.pos}, distance}
 end
 
+---@param self LuaNavigation
+---@param cell number
+---@return LuaNavigationNode
 local function get_node(self, cell)
     return self.graph.nodes[cell]
 end
 
+---@param self LuaNavigation
+---@param area LuaNavigationArea
+---@param pos LuaNavigationPosition
 local function area_add_joint(self, area, pos)
     local cell = pos2cell(self, pos)
     local nodes = self.graph.nodes
@@ -107,6 +145,20 @@ local function area_add_joint(self, area, pos)
         end
     end
     return node
+end
+
+---@param self LuaNavigation
+---@param area LuaNavigationArea
+---@param pos LuaNavigationPosition
+local function area_del_joint(self, area, pos)
+    local cell = pos2cell(self, pos)
+    local nodes = self.graph.nodes
+    local node = nodes[cell]
+    if node then
+        for from in pairs(node.connected) do
+            from.connected[node] = nil
+        end
+    end
 end
 
 function mt:init(w, h, obstacles)
@@ -150,13 +202,16 @@ function mt:get_area(area_id)
     end
     return area
 end
-
+---@param center_pos LuaNavigationPosition
+---@param camp? number
+---@param max_size? number
 function mt:add_portal(center_pos, camp, max_size)
     local cell = pos2cell(self, center_pos)
+    ---@class LuaNavigationPortal
     local portal = {
-        cell = cell,
-        camp = camp,
-        joints = {}
+        cell = cell, ---@type number
+        camp = camp, ---@type number?
+        joints = {} ---@type LuaNavigationPosition[]
     }
     self.portals[cell] = portal
     local cx = mfloor(center_pos.x)
@@ -193,8 +248,17 @@ end
 
 function mt:del_portal(pos)
     local cell = pos2cell(self, pos)
-    print("todo del_portal", cell)
-    -- TODO
+    local portal = self.portals[cell]
+    if portal then
+        for _, joint in pairs(portal.joints) do
+            local area_id = self:get_area_id_by_pos(joint)
+            local area = self:get_area(area_id)
+            area_del_joint(self, area, joint)
+        end
+        self.portals[cell] = nil
+    else
+        print("not found portal", cell)
+    end
 end
 
 local function connect_to_area(area, node)
