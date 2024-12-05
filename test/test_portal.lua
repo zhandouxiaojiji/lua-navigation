@@ -29,13 +29,23 @@ nav.core:dump_connected()
 nav:add_portal(portal_pos, nil, nil, joints)
 
 local function test_find_path(pos1, pos2)
-    print("========================")
-    print(string.format("find path (%s, %s) => (%s, %s)", pos1.x, pos1.y, pos2.x, pos2.y))
+    -- print("========================")
+    -- print(string.format("find path (%s, %s) => (%s, %s)", pos1.x, pos1.y, pos2.x, pos2.y))
     local ret = nav:find_path(pos1, pos2)
+    local path_strs = {}
     for _, v in ipairs(ret) do
-        print(v.x, v.y)
+        path_strs[#path_strs + 1] = string.format("(%s, %s)", v.x, v.y)
     end
-    print("========================")
+    local path_s = table.concat(path_strs, "=>")
+    -- print(path_s)
+    return path_s
 end
 
-test_find_path({ x = 1, y = 1 }, { x = 10, y = 10 })
+-- test_find_path({ x = 1, y = 1 }, { x = 10, y = 10 })
+-- test_find_path({ x = 5, y = 6 }, { x = 10, y = 10 })
+
+assert(test_find_path({ x = 1, y = 1 }, { x = 19, y = 1 }) == test_find_path({ x = 1, y = 1 }, { x = 19, y = 1 }))
+assert(test_find_path({ x = 19, y = 1 }, { x = 1, y = 1 }) == test_find_path({ x = 19, y = 1 }, { x = 1, y = 1 }))
+
+assert(test_find_path({ x = 1, y = 1 }, { x = 1, y = 19 }) == test_find_path({ x = 1, y = 1 }, { x = 1, y = 19 }))
+assert(test_find_path({ x = 0, y = 0 }, { x = 19, y = 19 }) == test_find_path({ x = 0, y = 0 }, { x = 19, y = 19 }))

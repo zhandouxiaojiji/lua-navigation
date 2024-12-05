@@ -41,7 +41,7 @@ end
 local function create_graph()
     ---@class LuaNavigationGraph
     local graph = {
-        nodes = {},
+        nodes = {},     ---@type {[number]: LuaNavigationNode}
         open_set = {},
         closed_set = {},
     }
@@ -77,8 +77,9 @@ local function calc_path_length(path)
     return len
 end
 
----@param path LuaNavigationPosition[]
----@return LuaNavigationPosition[]
+---@generic T
+---@param path T[]
+---@return T[]
 local function reverse_path(path)
     local new = {}
     for i = #path, 1, -1 do
@@ -314,16 +315,42 @@ local function disconnect_to_area(area, node)
 end
 
 local function merge_path(path1, path2)
-    for _, v in ipairs(path2) do
-        path1[#path1 + 1] = v
+    for i = 1, #path2-1 do
+        path1[#path1 + 1] = { x = path2[i].x, y = path2[i].y }
     end
 end
 
+local function table_2_string(tbl)
+    if not tbl then
+        return nil
+    end
+
+    local set = {}
+    local function traverse_tbl(tmp_tbl)
+        local t = {}
+        for k, v in pairs(tmp_tbl) do
+            local s
+            if type(v) == "table" then
+                if not set[v] then
+                    set[v] = true
+                    s = string.format("%s:%s", k, traverse_tbl(v))
+                end
+            else
+                s = string.format("%s:%s", k, v)
+            end
+            t[#t+1] = s
+        end
+        return string.format("[%s]", table.concat(t, ", "))
+    end
+    local result = traverse_tbl(tbl)
+    return result
+end
+
+---@param self LuaNavigation
 local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst_pos)
-    print("find_path_cross_area")
     local graph = self.graph
-    graph.open_set = {}
-    graph.closed_set = {}
+    local open_set = {}
+    local closed_set = {}
 
     local src_cell = pos2cell(self, src_pos)
     local dst_cell = pos2cell(self, dst_pos)
@@ -339,10 +366,10 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
 
     local ok, errmsg = xpcall(function()
         local function add_to_open_set(node, prev)
-            if graph.open_set[node] or graph.closed_set[node] then
+            if open_set[node] or closed_set[node] then
                 return
             end
-            graph.open_set[node] = true
+            open_set[node] = true
             node.prev = prev
             if prev then
                 node.g = prev.g + calc_distance(node.pos, prev.pos)
@@ -353,9 +380,9 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
             node.f = node.g + node.h
         end
         add_to_open_set(src_node)
-        while next(graph.open_set) do
+        while next(open_set) do
             local cur_node
-            for node in pairs(graph.open_set) do
+            for node in pairs(open_set) do
                 if not cur_node then
                     cur_node = node
                 else
@@ -364,10 +391,10 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
                     end
                 end
             end
-            graph.open_set[cur_node] = nil
-            graph.closed_set[cur_node] = true
+            open_set[cur_node] = nil
+            closed_set[cur_node] = true
             for node in pairs(cur_node.connected) do
-                if not graph.closed_set[node] and not graph.open_set[node] then
+                if not closed_set[node] and not open_set[node] then
                     add_to_open_set(node, cur_node)
                 end
             end
@@ -376,7 +403,7 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
         if not dst_node.prev then
             return {}
         end
-        local node_path = {}
+        local node_path = {}    ---@type LuaNavigationNode[]
         local node = dst_node
         while true do
             node_path[#node_path + 1] = node
@@ -398,7 +425,6 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
             local cur_node = node_path[i]
             local next_node = node_path[i + 1]
             local part = cur_node.connected[next_node][1]
-            part[#part] = nil
             merge_path(path, part)
         end
         path[#path + 1] = last.pos
@@ -410,6 +436,51 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
     disconnect_to_area(src_area, src_node)
     disconnect_to_area(dst_area, dst_node)
 
+    return path
+end
+
+local DIR_OFFSET = {    ---@type LuaNavigationPosition[] 顺时针方向
+    {x = -1, y = -1},
+    {x = 0, y = -1},
+    {x = 1, y = -1},
+    {x = 1, y = 0},
+    {x = 1, y = 1},
+    {x = 0, y = 1},
+    {x = -1, y = 1},
+    {x = -1, y = 0},
+}
+
+---@param self LuaNavigation
+---@param pos LuaNavigationPosition
+---@param max_size number
+local function find_nearest_joint(self, pos, max_size)
+    local tmp_pos = {x = pos.x, y = pos.y}
+    local nodes = self.graph.nodes
+    for i = 1, max_size do
+        for _, dir in pairs(DIR_OFFSET) do
+            tmp_pos.x = pos.x + dir.x * i
+            tmp_pos.y = pos.y + dir.y * i
+            local cell = pos2cell(self, tmp_pos)
+            local node = nodes[cell]
+            if node then
+                return node.pos
+            end
+        end
+    end
+end
+
+local function find_path_start_in_portal(self, from_area_id, from_pos, to_area_id, to_pos)
+    local joint_pos = find_nearest_joint(self, from_pos, 5)
+    if not joint_pos then
+        return {}
+    end
+    local path = find_path_cross_area(self, self:get_area_id_by_pos(joint_pos), joint_pos, to_area_id, to_pos)
+    if #path < 2 then
+        return path
+    end
+    local first_point = path[1]
+    first_point.x = from_pos.x
+    first_point.y = from_pos.y
     return path
 end
 
@@ -434,6 +505,8 @@ function mt:find_path(from_pos, to_pos, check_portal_func, ignore_list)
                     y = pos[2]
                 }
             end
+        elseif from_area_id == 0 then
+            path = find_path_start_in_portal(self, from_area_id, from_pos, to_area_id, to_pos)
         else
             path = find_path_cross_area(self, from_area_id, from_pos, to_area_id, to_pos)
         end
