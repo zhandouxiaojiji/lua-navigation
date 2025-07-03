@@ -297,7 +297,7 @@ static int lnav_clear_allblock(lua_State* L) {
 static int lnav_mark_connected(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
 
-    m->mark_connected = 1;
+    // m->mark_connected = 1;
     int len = m->width * m->height;
     memset(m->connected, 0, len * sizeof(int));
     memset(m->visited, 0, len * sizeof(char));
@@ -307,6 +307,8 @@ static int lnav_mark_connected(lua_State* L) {
             flood_mark(m, i, ++connected_num, len);
         }
     }
+
+    m->mark_connected = connected_num;
 
     return 0;
 }
