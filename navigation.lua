@@ -521,9 +521,13 @@ end
 ---@param max_size? number
 ---@param joints? LuaNavigationPosition[]
 function mt:add_portal(center_pos, camp, max_size, joints)
+    if not self:is_obstacle(center_pos) then
+        return
+    end
     local cell = pos2cell(self, center_pos)
     ---@class LuaNavigationPortal
     local portal = {
+        pos = center_pos, ---@type LuaNavigationPosition
         cell = cell, ---@type number
         camp = camp, ---@type number?
         joints = {} ---@type LuaNavigationPosition[]
