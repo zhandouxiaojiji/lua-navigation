@@ -160,6 +160,8 @@ local function area_del_joint(self, area, pos)
             from.connected[node] = nil
         end
     end
+    -- 清理节点
+    self.graph.nodes[cell] = nil
 end
 
 function mt:init(w, h, obstacles)
