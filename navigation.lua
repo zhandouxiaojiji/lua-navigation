@@ -207,19 +207,61 @@ function mt:quick_remark_area(change_pos)
     local x = mfloor(change_pos.x)
     local y = mfloor(change_pos.y)
 
+    -- 记录所有受影响的传送点
+    local affected_portals = {} -- {[portal_cell] = portal}
+
+    -- 检查格子是否是传送点的连接点，如果是则记录其传送点
+    local function check_portal_joint(px, py)
+        local pos = {x = px + 0.5, y = py + 0.5}
+        for portal_cell, portal in pairs(self.portals) do
+            for _, joint in pairs(portal.joints) do
+                if mfloor(joint.x) == px and mfloor(joint.y) == py then
+                    affected_portals[portal_cell] = portal
+                    break
+                end
+            end
+        end
+    end
+
+    -- 设置区域id并检查变化
+    local function set_area_id(px, py, new_id)
+        local old_id = self.core:get_connected_id(px, py)
+        if old_id ~= new_id then
+            check_portal_joint(px, py)
+        end
+        self.core:set_connected_id(px, py, new_id)
+    end
+
     local is_block = self.core:is_block(x, y)
 
     if is_block then
         -- 处理添加阻挡点的情况：找新产生的空洞
-        self:_handle_add_block(x, y)
+        self:_handle_add_block(x, y, set_area_id)
     else
         -- 处理移除阻挡点的情况：合并原来分离的区域
-        self:_handle_remove_block(x, y)
+        self:_handle_remove_block(x, y, set_area_id)
+    end
+
+    -- 删除受影响的传送点
+    local portals_to_readd = {}
+    for portal_cell, portal in pairs(affected_portals) do
+        portals_to_readd[#portals_to_readd + 1] = {
+            pos = cell2pos(self, portal_cell),
+            camp = portal.camp,
+            radius = 10, -- 默认半径
+            joints = portal.joints
+        }
+        self:del_portal(cell2pos(self, portal_cell))
+    end
+
+    -- 重新添加传送点
+    for _, portal_info in ipairs(portals_to_readd) do
+        self:add_portal(portal_info.pos, portal_info.camp)
     end
 end
 
--- 处理添加阻挡点的情况：检查是否分割了原有区域
-function mt:_handle_add_block(x, y)
+-- 修改_handle_add_block函数，添加set_area_id参数
+function mt:_handle_add_block(x, y, set_area_id)
     -- 1. 先临时移除当前点的阻挡，获取原始连通状态
     self.core:clear_block(x, y)
 
@@ -336,7 +378,11 @@ function mt:_handle_add_block(x, y)
                             local cx, cy = cur[1], cur[2]
 
                             -- 设置新的区域ID
-                            self.core:set_connected_id(cx, cy, new_connected_id)
+                            if set_area_id then
+                                set_area_id(cx, cy, new_connected_id)
+                            else
+                                self.core:set_connected_id(cx, cy, new_connected_id)
+                            end
 
                             -- 检查四个方向的相邻点
                             for _, dir in ipairs(directions) do
@@ -368,8 +414,8 @@ function mt:_handle_add_block(x, y)
     end
 end
 
--- 处理移除阻挡点的情况：合并原来分离的区域
-function mt:_handle_remove_block(x, y)
+-- 修改_handle_remove_block函数，添加set_area_id参数
+function mt:_handle_remove_block(x, y, set_area_id)
     -- 1. 检查当前点周围的连通区域
     local directions = {
         { -1, 0 }, -- 左
@@ -451,7 +497,11 @@ function mt:_handle_remove_block(x, y)
 
         -- 4. 将所有合并的点设置为目标区域ID
         for _, point in ipairs(merged_points) do
-            self.core:set_connected_id(point[1], point[2], target_area_id)
+            if set_area_id then
+                set_area_id(point[1], point[2], target_area_id)
+            else
+                self.core:set_connected_id(point[1], point[2], target_area_id)
+            end
         end
 
         -- 5. 使用BFS找出与合并点连通的所有区域，统一设置ID
@@ -482,14 +532,22 @@ function mt:_handle_remove_block(x, y)
                     not final_visited[key] and not self.core:is_block(nx, ny) then
                     final_visited[key] = true
                     final_queue[#final_queue + 1] = { nx, ny }
-                    self.core:set_connected_id(nx, ny, target_area_id)
+                    if set_area_id then
+                        set_area_id(nx, ny, target_area_id)
+                    else
+                        self.core:set_connected_id(nx, ny, target_area_id)
+                    end
                 end
             end
         end
     else
         -- 如果只有一个或没有邻近区域，直接设置当前点的区域ID
         local target_area_id = area_ids[1] or (self.core:get_max_connected_id() + 1)
-        self.core:set_connected_id(x, y, target_area_id)
+        if set_area_id then
+            set_area_id(x, y, target_area_id)
+        else
+            self.core:set_connected_id(x, y, target_area_id)
+        end
     end
 end
 
