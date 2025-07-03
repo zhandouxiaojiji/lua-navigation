@@ -7,6 +7,16 @@ local sqrt = math.sqrt
 ---@field x number
 ---@field y number
 
+---@class LuaNavigationNode
+---@field cell number
+---@field pos LuaNavigationPosition
+---@field g number
+---@field h number
+---@field f number
+---@field prev LuaNavigationNode
+---@field connected table<LuaNavigationNode, {LuaNavigationPosition[], number}>
+---@field disabled boolean 是否不可用
+
 ---@class LuaNavigation
 local mt = {}
 mt.__index = mt
@@ -33,7 +43,8 @@ local function create_node(cell, pos)
         h = 0,
         f = 0,
         prev = nil,
-        connected = {} -- {node -> {path, length}}
+        connected = {}, -- {node -> {path, length}}
+        disabled = false
     }
     return node
 end
@@ -184,10 +195,26 @@ function mt:update_areas()
 end
 
 function mt:set_obstacle(pos)
+    local cell = pos2cell(self, pos)
+    -- 检查是否有连接点
+    for _, area in pairs(self.areas) do
+        local node = area.joints[cell]
+        if node then
+            node.disabled = true
+        end
+    end
     self.core:add_block(mfloor(pos.x), mfloor(pos.y))
 end
 
 function mt:unset_obstacle(pos)
+    local cell = pos2cell(self, pos)
+    -- 检查是否有连接点
+    for _, area in pairs(self.areas) do
+        local node = area.joints[cell]
+        if node then
+            node.disabled = false
+        end
+    end
     self.core:clear_block(mfloor(pos.x), mfloor(pos.y))
 end
 
@@ -663,9 +690,11 @@ end
 
 local function connect_to_area(area, node)
     for _, joint in pairs(area.joints) do
-        local distance = calc_distance(node.pos, joint.pos)
-        node.connected[joint] = { { node.pos, joint.pos }, distance }
-        joint.connected[node] = { { joint.pos, node.pos }, distance }
+        if not joint.disabled then
+            local distance = calc_distance(node.pos, joint.pos)
+            node.connected[joint] = { { node.pos, joint.pos }, distance }
+            joint.connected[node] = { { joint.pos, node.pos }, distance }
+        end
     end
 end
 
@@ -756,7 +785,7 @@ local function find_path_cross_area(self, src_area_id, src_pos, dst_area_id, dst
             open_set[cur_node] = nil
             closed_set[cur_node] = true
             for node in pairs(cur_node.connected) do
-                if not closed_set[node] and not open_set[node] then
+                if not node.disabled and not closed_set[node] and not open_set[node] then
                     add_to_open_set(node, cur_node)
                 end
             end
