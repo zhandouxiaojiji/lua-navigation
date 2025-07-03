@@ -193,6 +193,149 @@ function mt:is_obstacle(pos)
     return self.core:is_block(mfloor(pos.x), mfloor(pos.y))
 end
 
+function mt:set_connected_id(pos, id)
+    self.core:set_connected_id(mfloor(pos.x), mfloor(pos.y), id)
+end
+
+function mt:get_max_connected_id()
+    return self.core:get_max_connected_id()
+end
+
+function mt:quick_remark_area(change_pos)
+    local x = mfloor(change_pos.x)
+    local y = mfloor(change_pos.y)
+    
+    -- 检查起点是否为阻挡点
+    if not self.core:is_block(x, y) then
+        error(string.format("Position (%d,%d) is not a block", x, y))
+    end
+    
+    -- 1. 从起点开始扩展找所有连通的阻挡点，构建包围盒
+    local visited = {}
+    local queue = {}
+    local min_x, max_x = x, x
+    local min_y, max_y = y, y
+    
+    -- 初始化队列
+    local function pos_key(px, py)
+        return px + py * self.w
+    end
+    
+    local function add_to_queue(px, py)
+        local key = pos_key(px, py)
+        if not visited[key] and 
+           px >= 0 and px < self.w and 
+           py >= 0 and py < self.h and
+           self.core:is_block(px, py) then
+            visited[key] = true
+            queue[#queue + 1] = {px, py}
+            return true
+        end
+        return false
+    end
+    
+    add_to_queue(x, y)
+    
+    -- BFS扩展找所有相邻的阻挡点
+    local head = 1
+    while head <= #queue do
+        local cur = queue[head]
+        head = head + 1
+        local cx, cy = cur[1], cur[2]
+        
+        -- 更新包围盒
+        if cx < min_x then min_x = cx end
+        if cx > max_x then max_x = cx end
+        if cy < min_y then min_y = cy end
+        if cy > max_y then max_y = cy end
+        
+        -- 检查四个方向的相邻阻挡点
+        add_to_queue(cx - 1, cy)  -- 左
+        add_to_queue(cx + 1, cy)  -- 右
+        add_to_queue(cx, cy - 1)  -- 上
+        add_to_queue(cx, cy + 1)  -- 下
+    end
+    
+    -- 2. 扩展包围盒边界，确保能找到完整的空洞
+    min_x = math.max(0, min_x - 1)
+    max_x = math.min(self.w - 1, max_x + 1)
+    min_y = math.max(0, min_y - 1)
+    max_y = math.min(self.h - 1, max_y + 1)
+    
+    -- 3. 在包围盒内找空洞并重新标记分区
+    local hole_visited = {}
+    local new_connected_id = self.core:get_max_connected_id() + 1
+    
+    local function hole_pos_key(px, py)
+        return px + py * self.w
+    end
+    
+    -- 遍历包围盒内的所有点
+    for yy = min_y, max_y do
+        for xx = min_x, max_x do
+            local key = hole_pos_key(xx, yy)
+            
+            -- 如果这个点不是阻挡，且没有被访问过，则可能是空洞的一部分
+            if not self.core:is_block(xx, yy) and not hole_visited[key] then
+                -- 用BFS找这个连通区域
+                local hole_queue = {}
+                local hole_points = {}
+                local is_new_hole = true
+                
+                hole_queue[#hole_queue + 1] = {xx, yy}
+                hole_visited[key] = true
+                
+                local hole_head = 1
+                while hole_head <= #hole_queue do
+                    local cur = hole_queue[hole_head]
+                    hole_head = hole_head + 1
+                    local cx, cy = cur[1], cur[2]
+                    
+                    hole_points[#hole_points + 1] = {cx, cy}
+                    
+                    -- 检查空洞边缘是否超出原始包围盒
+                    -- 如果触及到原始包围盒的边界，说明这不是一个封闭的新空洞
+                    if (cx == min_x and min_x > 0) or 
+                       (cx == max_x and max_x < self.w - 1) or
+                       (cy == min_y and min_y > 0) or 
+                       (cy == max_y and max_y < self.h - 1) then
+                        is_new_hole = false
+                    end
+                    
+                    -- 扩展到相邻的非阻挡点
+                    local directions = {
+                        {cx - 1, cy},  -- 左
+                        {cx + 1, cy},  -- 右
+                        {cx, cy - 1},  -- 上
+                        {cx, cy + 1}   -- 下
+                    }
+                    
+                    for _, dir in ipairs(directions) do
+                        local nx, ny = dir[1], dir[2]
+                        local nkey = hole_pos_key(nx, ny)
+                        
+                        if nx >= min_x and nx <= max_x and 
+                           ny >= min_y and ny <= max_y and
+                           not self.core:is_block(nx, ny) and 
+                           not hole_visited[nkey] then
+                            hole_visited[nkey] = true
+                            hole_queue[#hole_queue + 1] = {nx, ny}
+                        end
+                    end
+                end
+                
+                -- 如果是新空洞（完全被包围盒内的阻挡点包围），给它分配新的连通ID
+                if is_new_hole and #hole_points > 0 then
+                    for _, point in ipairs(hole_points) do
+                        self.core:set_connected_id(point[1], point[2], new_connected_id)
+                    end
+                    new_connected_id = new_connected_id + 1
+                end
+            end
+        end
+    end
+end
+
 function mt:get_area_id_by_pos(pos)
     return self.core:get_connected_id(mfloor(pos.x), mfloor(pos.y))
 end

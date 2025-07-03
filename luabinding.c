@@ -229,6 +229,34 @@ static int lnav_get_connected_id(lua_State* L) {
     return 1;
 }
 
+static int lnav_set_connected_id(lua_State* L) {
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int connected_id = luaL_checkinteger(L, 4);
+    
+    if (!check_in_map(x, y, m->width, m->height)) {
+        luaL_error(L, "Position (%d,%d) is out of map", x, y);
+    }
+    
+    if (!m->mark_connected) {
+        luaL_error(L, "Map has not been marked for connected areas");
+    }
+    
+    m->connected[m->width * y + x] = connected_id;
+    if (connected_id > m->mark_connected) {
+        m->mark_connected = connected_id;
+    }
+    return 0;
+}
+
+static int lnav_get_max_connected_id(lua_State* L) {
+    Map* m = luaL_checkudata(L, 1, MT_NAME);
+    int max_id = m->mark_connected;
+    lua_pushinteger(L, max_id);
+    return 1;
+}
+
 static int lnav_blockset(lua_State* L) {
     Map* m = luaL_checkudata(L, 1, MT_NAME);
     luaL_checktype(L, 2, LUA_TTABLE);
@@ -475,6 +503,8 @@ static int lmetatable(lua_State* L) {
                         {"find_path", lnav_find_path},
                         {"find_line_obstacle", lnav_check_line_walkable},
                         {"get_connected_id", lnav_get_connected_id},
+                        {"set_connected_id", lnav_set_connected_id},
+                        {"get_max_connected_id", lnav_get_max_connected_id},
                         {"mark_connected", lnav_mark_connected},
                         {"dump_connected", lnav_dump_connected},
                         {"dump", lnav_dump},
