@@ -205,11 +205,19 @@ function mt:quick_remark_area(change_pos)
     local x = mfloor(change_pos.x)
     local y = mfloor(change_pos.y)
     
-    -- 检查起点是否为阻挡点
-    if not self.core:is_block(x, y) then
-        error(string.format("Position (%d,%d) is not a block", x, y))
-    end
+    local is_block = self.core:is_block(x, y)
     
+    if is_block then
+        -- 处理添加阻挡点的情况：找新产生的空洞
+        self:_handle_add_block(x, y)
+    else
+        -- 处理移除阻挡点的情况：合并原来分离的区域
+        self:_handle_remove_block(x, y)
+    end
+end
+
+-- 处理添加阻挡点的情况：找新产生的空洞
+function mt:_handle_add_block(x, y)
     -- 1. 从起点开始扩展找所有连通的阻挡点，构建包围盒
     local visited = {}
     local queue = {}
@@ -333,6 +341,131 @@ function mt:quick_remark_area(change_pos)
                 end
             end
         end
+    end
+end
+
+-- 处理移除阻挡点的情况：合并原来分离的区域
+function mt:_handle_remove_block(x, y)
+    -- 1. 检查当前点周围的连通区域
+    local directions = {
+        {-1, 0},  -- 左
+        {1, 0},   -- 右
+        {0, -1},  -- 上
+        {0, 1}    -- 下
+    }
+    
+    local neighbor_areas = {}
+    local area_count = {}
+    
+    -- 收集周围不同的连通区域ID
+    for _, dir in ipairs(directions) do
+        local nx, ny = x + dir[1], y + dir[2]
+        if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+           not self.core:is_block(nx, ny) then
+            local area_id = self.core:get_connected_id(nx, ny)
+            if area_id > 0 then
+                if not neighbor_areas[area_id] then
+                    neighbor_areas[area_id] = {}
+                    area_count[area_id] = 0
+                end
+                neighbor_areas[area_id][#neighbor_areas[area_id] + 1] = {nx, ny}
+                area_count[area_id] = area_count[area_id] + 1
+            end
+        end
+    end
+    
+    -- 2. 如果周围有多个不同的连通区域，需要合并它们
+    local area_ids = {}
+    for area_id in pairs(neighbor_areas) do
+        area_ids[#area_ids + 1] = area_id
+    end
+    
+    if #area_ids > 1 then
+        -- 选择最小的area_id作为目标ID
+        table.sort(area_ids)
+        local target_area_id = area_ids[1]
+        
+        -- 3. 从当前点开始，找出所有能连通到的区域
+        local visited = {}
+        local queue = {}
+        local merged_points = {}
+        
+        local function pos_key(px, py)
+            return px + py * self.w
+        end
+        
+        -- 将当前点加入队列作为起点
+        queue[#queue + 1] = {x, y}
+        visited[pos_key(x, y)] = true
+        merged_points[#merged_points + 1] = {x, y}
+        
+        -- BFS遍历所有能连通的点
+        local head = 1
+        while head <= #queue do
+            local cur = queue[head]
+            head = head + 1
+            local cx, cy = cur[1], cur[2]
+            
+            -- 检查四个方向的相邻点
+            for _, dir in ipairs(directions) do
+                local nx, ny = cx + dir[1], cy + dir[2]
+                local key = pos_key(nx, ny)
+                
+                if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+                   not visited[key] and not self.core:is_block(nx, ny) then
+                    local area_id = self.core:get_connected_id(nx, ny)
+                    
+                    -- 如果是需要合并的区域之一
+                    if neighbor_areas[area_id] then
+                        visited[key] = true
+                        queue[#queue + 1] = {nx, ny}
+                        merged_points[#merged_points + 1] = {nx, ny}
+                    end
+                end
+            end
+        end
+        
+        -- 4. 将所有合并的点设置为目标区域ID
+        for _, point in ipairs(merged_points) do
+            self.core:set_connected_id(point[1], point[2], target_area_id)
+        end
+        
+        -- 5. 使用BFS找出与合并点连通的所有区域，统一设置ID
+        local final_visited = {}
+        local final_queue = {}
+        
+        -- 将所有合并点作为种子加入队列
+        for _, point in ipairs(merged_points) do
+            local key = pos_key(point[1], point[2])
+            if not final_visited[key] then
+                final_visited[key] = true
+                final_queue[#final_queue + 1] = point
+            end
+        end
+        
+        local final_head = 1
+        while final_head <= #final_queue do
+            local cur = final_queue[final_head]
+            final_head = final_head + 1
+            local cx, cy = cur[1], cur[2]
+            
+            -- 检查四个方向的相邻点
+            for _, dir in ipairs(directions) do
+                local nx, ny = cx + dir[1], cy + dir[2]
+                local key = pos_key(nx, ny)
+                
+                if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+                   not final_visited[key] and not self.core:is_block(nx, ny) then
+                    final_visited[key] = true
+                    final_queue[#final_queue + 1] = {nx, ny}
+                    self.core:set_connected_id(nx, ny, target_area_id)
+                end
+            end
+        end
+    else
+        -- 如果只有一个或没有邻近区域，直接设置当前点的区域ID
+        local target_area_id = area_ids[1] or (self.core:get_max_connected_id() + 1)
+        self.core:set_connected_id(x, y, target_area_id)
     end
 end
 
