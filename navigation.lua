@@ -216,128 +216,150 @@ function mt:quick_remark_area(change_pos)
     end
 end
 
--- 处理添加阻挡点的情况：找新产生的空洞
+-- 处理添加阻挡点的情况：检查是否分割了原有区域
 function mt:_handle_add_block(x, y)
-    -- 1. 从起点开始扩展找所有连通的阻挡点，构建包围盒
-    local visited = {}
-    local queue = {}
-    local min_x, max_x = x, x
-    local min_y, max_y = y, y
+    -- 1. 先临时移除当前点的阻挡，获取原始连通状态
+    self.core:clear_block(x, y)
     
-    -- 初始化队列
+    local directions = {
+        {-1, 0},  -- 左
+        {1, 0},   -- 右
+        {0, -1},  -- 上
+        {0, 1}    -- 下
+    }
+    
+    local neighbor_points = {}
+    
+    -- 收集周围不同的连通区域ID和对应的点（在移除阻挡点的状态下）
+    for _, dir in ipairs(directions) do
+        local nx, ny = x + dir[1], y + dir[2]
+        if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+           not self.core:is_block(nx, ny) then
+            local area_id = self.core:get_connected_id(nx, ny)
+            if area_id > 0 then
+                neighbor_points[#neighbor_points + 1] = {nx, ny, area_id}
+            end
+        end
+    end
+    
+    -- 2. 重新添加阻挡点
+    self.core:add_block(x, y)
+    
+    -- 3. 如果没有邻近点，直接返回
+    if #neighbor_points == 0 then
+        return
+    end
+    
     local function pos_key(px, py)
         return px + py * self.w
     end
     
-    local function add_to_queue(px, py)
-        local key = pos_key(px, py)
-        if not visited[key] and 
-           px >= 0 and px < self.w and 
-           py >= 0 and py < self.h and
-           self.core:is_block(px, py) then
-            visited[key] = true
-            queue[#queue + 1] = {px, py}
-            return true
+    -- 4. 按area_id分组
+    local area_groups = {}
+    for _, point in ipairs(neighbor_points) do
+        local area_id = point[3]
+        if not area_groups[area_id] then
+            area_groups[area_id] = {}
         end
-        return false
+        area_groups[area_id][#area_groups[area_id] + 1] = {point[1], point[2]}
     end
     
-    add_to_queue(x, y)
-    
-    -- BFS扩展找所有相邻的阻挡点
-    local head = 1
-    while head <= #queue do
-        local cur = queue[head]
-        head = head + 1
-        local cx, cy = cur[1], cur[2]
-        
-        -- 更新包围盒
-        if cx < min_x then min_x = cx end
-        if cx > max_x then max_x = cx end
-        if cy < min_y then min_y = cy end
-        if cy > max_y then max_y = cy end
-        
-        -- 检查四个方向的相邻阻挡点
-        add_to_queue(cx - 1, cy)  -- 左
-        add_to_queue(cx + 1, cy)  -- 右
-        add_to_queue(cx, cy - 1)  -- 上
-        add_to_queue(cx, cy + 1)  -- 下
-    end
-    
-    -- 2. 扩展包围盒边界，确保能找到完整的空洞
-    min_x = math.max(0, min_x - 1)
-    max_x = math.min(self.w - 1, max_x + 1)
-    min_y = math.max(0, min_y - 1)
-    max_y = math.min(self.h - 1, max_y + 1)
-    
-    -- 3. 在包围盒内找空洞并重新标记分区
-    local hole_visited = {}
+    local processed = {}
     local new_connected_id = self.core:get_max_connected_id() + 1
     
-    local function hole_pos_key(px, py)
-        return px + py * self.w
-    end
-    
-    -- 遍历包围盒内的所有点
-    for yy = min_y, max_y do
-        for xx = min_x, max_x do
-            local key = hole_pos_key(xx, yy)
+    -- 5. 对于每个有多个邻近点的area_id，检查是否被分割
+    for area_id, points in pairs(area_groups) do
+        if #points > 1 then
+            -- 从第一个点开始BFS，看能连通到多少个同area_id的邻近点
+            local first_point = points[1]
+            local visited = {}
+            local queue = {}
+            local reachable_neighbors = {}
             
-            -- 如果这个点不是阻挡，且没有被访问过，则可能是空洞的一部分
-            if not self.core:is_block(xx, yy) and not hole_visited[key] then
-                -- 用BFS找这个连通区域
-                local hole_queue = {}
-                local hole_points = {}
-                local is_new_hole = true
+            queue[#queue + 1] = first_point
+            visited[pos_key(first_point[1], first_point[2])] = true
+            
+            local head = 1
+            while head <= #queue do
+                local cur = queue[head]
+                head = head + 1
+                local cx, cy = cur[1], cur[2]
                 
-                hole_queue[#hole_queue + 1] = {xx, yy}
-                hole_visited[key] = true
-                
-                local hole_head = 1
-                while hole_head <= #hole_queue do
-                    local cur = hole_queue[hole_head]
-                    hole_head = hole_head + 1
-                    local cx, cy = cur[1], cur[2]
-                    
-                    hole_points[#hole_points + 1] = {cx, cy}
-                    
-                    -- 检查空洞边缘是否超出原始包围盒
-                    -- 如果触及到原始包围盒的边界，说明这不是一个封闭的新空洞
-                    if (cx == min_x and min_x > 0) or 
-                       (cx == max_x and max_x < self.w - 1) or
-                       (cy == min_y and min_y > 0) or 
-                       (cy == max_y and max_y < self.h - 1) then
-                        is_new_hole = false
-                    end
-                    
-                    -- 扩展到相邻的非阻挡点
-                    local directions = {
-                        {cx - 1, cy},  -- 左
-                        {cx + 1, cy},  -- 右
-                        {cx, cy - 1},  -- 上
-                        {cx, cy + 1}   -- 下
-                    }
-                    
-                    for _, dir in ipairs(directions) do
-                        local nx, ny = dir[1], dir[2]
-                        local nkey = hole_pos_key(nx, ny)
-                        
-                        if nx >= min_x and nx <= max_x and 
-                           ny >= min_y and ny <= max_y and
-                           not self.core:is_block(nx, ny) and 
-                           not hole_visited[nkey] then
-                            hole_visited[nkey] = true
-                            hole_queue[#hole_queue + 1] = {nx, ny}
-                        end
+                -- 检查这个点是否是邻近点之一
+                for _, neighbor in ipairs(points) do
+                    if neighbor[1] == cx and neighbor[2] == cy then
+                        reachable_neighbors[#reachable_neighbors + 1] = neighbor
+                        break
                     end
                 end
                 
-                -- 如果是新空洞（完全被包围盒内的阻挡点包围），给它分配新的连通ID
-                if is_new_hole and #hole_points > 0 then
-                    for _, point in ipairs(hole_points) do
-                        self.core:set_connected_id(point[1], point[2], new_connected_id)
+                -- 检查四个方向的相邻点
+                for _, dir in ipairs(directions) do
+                    local nx, ny = cx + dir[1], cy + dir[2]
+                    local key = pos_key(nx, ny)
+                    
+                    if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+                       not visited[key] and not self.core:is_block(nx, ny) then
+                        local point_area_id = self.core:get_connected_id(nx, ny)
+                        if point_area_id == area_id then
+                            visited[key] = true
+                            queue[#queue + 1] = {nx, ny}
+                        end
                     end
-                    new_connected_id = new_connected_id + 1
+                end
+            end
+            
+            -- 6. 如果无法连通到所有邻近点，说明区域被分割了
+            if #reachable_neighbors < #points then
+                -- 标记第一个连通组件为已处理
+                for _, point in ipairs(reachable_neighbors) do
+                    processed[pos_key(point[1], point[2])] = true
+                end
+                
+                -- 为其他不连通的邻近点分配新的区域ID
+                for _, start_point in ipairs(points) do
+                    local key = pos_key(start_point[1], start_point[2])
+                    if not processed[key] then
+                        -- 从这个点开始BFS，找出它的完整连通区域
+                        local new_visited = {}
+                        local new_queue = {}
+                        
+                        new_queue[#new_queue + 1] = start_point
+                        new_visited[key] = true
+                        
+                        local new_head = 1
+                        while new_head <= #new_queue do
+                            local cur = new_queue[new_head]
+                            new_head = new_head + 1
+                            local cx, cy = cur[1], cur[2]
+                            
+                            -- 设置新的区域ID
+                            self.core:set_connected_id(cx, cy, new_connected_id)
+                            
+                            -- 检查四个方向的相邻点
+                            for _, dir in ipairs(directions) do
+                                local nx, ny = cx + dir[1], cy + dir[2]
+                                local nkey = pos_key(nx, ny)
+                                
+                                if nx >= 0 and nx < self.w and ny >= 0 and ny < self.h and
+                                   not new_visited[nkey] and not self.core:is_block(nx, ny) then
+                                    local point_area_id = self.core:get_connected_id(nx, ny)
+                                    if point_area_id == area_id then
+                                        new_visited[nkey] = true
+                                        new_queue[#new_queue + 1] = {nx, ny}
+                                    end
+                                end
+                            end
+                        end
+                        
+                        processed[key] = true
+                        new_connected_id = new_connected_id + 1
+                    end
+                end
+            else
+                -- 所有邻近点都还能连通，标记为已处理
+                for _, point in ipairs(points) do
+                    processed[pos_key(point[1], point[2])] = true
                 end
             end
         end
