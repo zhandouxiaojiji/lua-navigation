@@ -150,7 +150,7 @@ local function area_add_joint(self, area, pos)
             if from ~= to then
                 local node1 = get_node(self, from)
                 local node2 = get_node(self, to)
-                if not node1.connected[node2] and node2 then
+                if node1 and node2 and not node1.connected[node2] then
                     connect_nodes(self, node1, node2)
                 end
             end
